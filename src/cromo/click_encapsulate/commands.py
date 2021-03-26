@@ -1,10 +1,14 @@
 from pathlib import Path
 
+from click.types import DateTime
+
 import cromo
 import semver
 import click
 from cromo import _utils
 from cromo._utils import get_cromo_logger
+from cromo.constants import MODEL_CATALOG_URL
+from cromo.catalogs.model_catalog import getAllModelConfigurations
 
 logging = get_cromo_logger()
 
@@ -34,10 +38,35 @@ You should consider upgrading via 'pip install --upgrade cromo' command.""",
 
 @cli.command(short_help="Find appropriate models for a particular region")
 @click.argument(
-    "region_bounding_box",
-    default=Path('10.2,45.4,10.23,49.4'),
+    "scenario",
+    default="ControlledFire",
     required=True
 )
-def start(region_bounding_box):
-    print(region_bounding_box)
+@click.argument(
+    "region_geojson",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, resolve_path=True),
+    default=Path('src/cromo/test/awash.geojson'),
+    required=True
+)
+@click.argument(
+    "start_date",
+    type=click.DateTime(),
+    default=DateTime(),
+    required=True
+)
+@click.argument(
+    "end_date",
+    type=click.DateTime(),
+    default=DateTime(),
+    required=True
+)
+def start(scenario, region_geojson, start_date, end_date):
+    print(region_geojson)
+    print(start_date)
+    print(end_date)
+
+    # Get all model configurations (or setups ?)
+    print ("Fetching all models for {}".format(scenario))
+    configs = getAllModelConfigurations()
+    print(configs)
     

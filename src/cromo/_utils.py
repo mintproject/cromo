@@ -8,7 +8,7 @@ import requests
 import validators
 import cromo
 
-from cromo.constants import cromo_DIR, LOG_FILE
+from cromo.constants import CROMO_DIR, LOG_FILE
 MODEL_ID_URI = "https://w3id.org/okn/i/mint/"
 __DEFAULT_MINT_API_CREDENTIALS_FILE__ = "~/.mint/credentials"
 
@@ -23,13 +23,13 @@ def first_line_new(resource, i=""):
     click.echo("The actual values are:")
 
 def make_log_file():
-    if os.path.exists(Path(cromo_DIR) / LOG_FILE):
+    if os.path.exists(Path(CROMO_DIR) / LOG_FILE):
         return True
     try:
-        if not os.path.exists(Path(cromo_DIR)):
-            os.mkdir(cromo_DIR)
-        if not os.path.exists(Path(cromo_DIR) / LOG_FILE):
-            with open(Path(cromo_DIR) / LOG_FILE, 'w') as fp:
+        if not os.path.exists(Path(CROMO_DIR)):
+            os.mkdir(CROMO_DIR)
+        if not os.path.exists(Path(CROMO_DIR) / LOG_FILE):
+            with open(Path(CROMO_DIR) / LOG_FILE, 'w') as fp:
                 pass
 
         init_logger()
@@ -91,8 +91,8 @@ def get_cromo_logger():
 
 def init_logger():
     logger = logging.getLogger(cromo.__name__)
-    if os.path.exists(Path(cromo_DIR) / LOG_FILE):
-        handler = logging.FileHandler(Path(cromo_DIR) / LOG_FILE)
+    if os.path.exists(Path(CROMO_DIR) / LOG_FILE):
+        handler = logging.FileHandler(Path(CROMO_DIR) / LOG_FILE)
     elif os.path.exists(LOG_FILE):
         handler = logging.FileHandler(LOG_FILE)
     else:
