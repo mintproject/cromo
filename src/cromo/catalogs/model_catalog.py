@@ -1,4 +1,6 @@
 
+from os import read
+import re
 from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog import api_client, configuration
 from modelcatalog.api.model_configuration_api import ModelConfigurationApi
@@ -6,9 +8,14 @@ from modelcatalog.api.model_configuration_setup_api import ModelConfigurationSet
 from modelcatalog.api.variable_presentation_api import VariablePresentationApi
 from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog.exceptions import ApiException
-from cromo.constants import MODEL_CATALOG_URL, DEFAULT_USERNAME, getLocalName
+from cromo.catalogs.data_catalog import getMatchingDatasets
+from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_USERNAME, ONTOLOGY_DIR, RULES_DIR, getLocalName
+
+from owlready2 import *
 
 MC_API_CLIENT=api_client.ApiClient(configuration.Configuration(host=MODEL_CATALOG_URL))
+
+onto_path.append(ONTOLOGY_DIR)
 
 # Get all model configurations
 def getAllModelConfigurations():
@@ -21,7 +28,19 @@ def getAllModelConfigurations():
         print("Exception when calling ModelConfigurationApi->modelconfigurations_get: %s\n" % e)
     return []
 
-# create an instance of the API class
+# Get all model configuration setups
+def getAllModelConfigurationSetups():
+    try:
+        # List all Model entities
+        api_instance = ModelConfigurationSetupApi(api_client=MC_API_CLIENT)
+        configs = api_instance.modelconfigurationsetups_get(username=DEFAULT_USERNAME)
+        return configs
+    except ApiException as e:
+        print("Exception when calling ModelConfigurationApi->modelconfigurationsetups_get: %s\n" % e)
+    return []
+
+
+# Get Input details of a model configuration (or a setup)
 def getModelConfigurationDetails(config):
     try:
         spec_api = DatasetSpecificationApi(api_client=MC_API_CLIENT)
@@ -44,13 +63,153 @@ def getModelConfigurationDetails(config):
         print("Exception when getting model configuration details({}): {}\n".format(config.id, e))
     return None
 
-# Get all model configuration setups
-def getAllModelConfigurationSetups():
+# Fetch rules. TODO: Fetch this from the model catalog
+def getModelRules(configid):
+    rules = []
     try:
-        # List all Model entities
-        api_instance = ModelConfigurationSetupApi(api_client=MC_API_CLIENT)
-        configs = api_instance.modelconfigurationsetups_get(username=DEFAULT_USERNAME)
-        return configs
-    except ApiException as e:
-        print("Exception when calling ModelConfigurationApi->modelconfigurations_get: %s\n" % e)
-    return []
+        currule = ""        
+        with open("{}/{}.rules".format(RULES_DIR, getLocalName(configid))) as fd:
+            for rule in fd.readlines():
+                srule = rule.strip()
+                if srule == "":
+                    rules.append(currule)
+                    currule = ""
+                else:
+                    currule += srule
+        if currule.strip() != "":
+            rules.append(currule)
+
+    except FileNotFoundError as e:
+        pass
+        #print("Rules file not found for {}: {}".format(configid, e))
+    return rules
+
+
+class ModelRuleInput:
+    def __init__(self, input, variable):
+        self.input = input
+        self.variable = variable
+
+
+def searchFunctionArguments(fn, rule):
+    args = {}
+    for item in rule.body:
+        if item.property_predicate is not None and item.property_predicate.name == fn:
+            if len(item.arguments) == 2:
+                if item.arguments[0] not in args:
+                    args[item.arguments[0]] = []
+                args[item.arguments[0]].append(item.arguments[1])
+    return args
+
+def parseModelRule(rule):
+    ruleinputs = []
+    inputargs = searchFunctionArguments("hasModelInput", rule)
+    labelargs = searchFunctionArguments("hasLabel", rule)
+    bindingargs = searchFunctionArguments("hasDataBinding", rule)
+    varargs = searchFunctionArguments("hasVariable", rule)
+
+    # Get all relevant model inputs in the rule
+    for ex,ivars in inputargs.items():
+        for ivar in ivars:
+            # Get the label of the model inputs
+            if ivar in labelargs:
+                ivarlabel = labelargs[ivar][0]
+                # Get the dataset binding for the model inputs
+                if ivar in bindingargs:
+                    ibinding = bindingargs[ivar][0]
+                    # Check which data variable the rule refers to
+                    if ibinding in varargs:
+                        for dvar in varargs[ibinding]:
+                            if dvar in labelargs:
+                                # Get the label of the data variable
+                                dvarlabel = labelargs[dvar][0]
+                                ruleinputs.append({
+                                    "input": ivarlabel,
+                                    "variable": dvarlabel
+                                })
+    return ruleinputs
+
+
+
+# Check which inputs do we have to process: { i, m } (input and metadata from that input)
+# - Get datasets for these inputs : { dj }
+# - Run the variable generation code on each of them
+#   - Store the list of metadata and values for each dataset djmv = (dj, {m, mv})
+# - For each relevant rule input, store a list of { (i, { djmv }) }
+# - Create a cross product for all input djmv lists
+# - For each item in the cross product
+#   - Create a ModelExecution in owlready2 with appropriate values of i, m, mv
+#   - Run all model rules ( one by one ?)
+#   - Check if the model is valid
+
+def checkConfigViability(config, region_geojson, start_date, end_date):
+    #print("Get model IO details...", end='\r')
+    #config = getModelConfigurationDetails(config)
+    #print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+    
+    rules = getModelRules(config.id)
+    onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
+    with onto:
+        for r in rules:
+            rule = Imp()
+            rule.set_as_rule(r)
+            ruleinputs = parseModelRule(rule)
+            print(ruleinputs)
+
+        exobj = onto.ModelExecution(config.id)
+        exobj.hasInput = []
+
+        for input in config.has_input:
+            inobj = onto.ModelInput(input.id)
+            exobj.hasInput.append(inobj)
+            continue
+
+            #print(input)
+            if input.has_presentation is not None:
+                print("\tInput: {}".format(input.label[0]))
+                variables = []
+                for pres in input.has_presentation:
+                    if pres.has_standard_variable is not None:
+                        variables.append(pres.has_standard_variable[0].label[0])
+                print("\tVariables: {}".format(str(variables)))
+
+                print("\t\tSearching datasets...", end='\r')
+
+                datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
+                
+                print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+
+                if len(datasets) == 0:
+                    print("\r\t\tNo datasets found in data catalog matching input variables")
+                else:
+                    matches = matchTypedDatasets(datasets, input.type)
+                    if len(matches) == 0:
+                        print("\r\t\tNo datasets found in data catalog for matching type. Showing all datasets for matching input variables")
+                        matches = datasets
+                    for ds in matches:
+                        meta = ds["dataset_metadata"]
+                        print("\r\t\t* {}".format(ds["dataset_name"]))
+                        if "source" in meta:
+                            print("\t\t\t- Source: {}".format(meta["source"]))
+                        if "version" in meta:
+                            print("\t\t\t- Version: {}".format(meta["version"]))
+
+                        print("\t\t\t- Fetching resources...", end='\r')
+
+                        resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
+                        
+                        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+                        print("\r\t\t\t- {} resources".format(len(resources)))
+
+
+# ?ex
+# -> hasInput
+#     -> hasLabel "cycles_weather"
+#     -> hasBinding
+#         -> id "asdfasdfasdf"
+#         -> hasVariable
+#             -> hasLabel "min_wind_speed"
+#             -> hasValue "10"
+#         -> hasVariable
+#             -> hasLabel "average_wind_speed"
+#             -> hasValue "24"

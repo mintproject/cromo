@@ -48,3 +48,12 @@ def getMatchingDatasetResources(dsid, geojson_file, start_date, end_date):
 
 def dateTimeToXSD(dt):
     return str(dt).replace(" ", "T")
+
+def matchTypedDatasets(datasets, types):
+    matches = []
+    for ds in datasets:
+        if "datatype" in ds["dataset_metadata"]:
+            dtype = "https://w3id.org/wings/export/MINT#{}".format(ds["dataset_metadata"]["datatype"])
+            if dtype in types:
+                matches.append(ds)
+    return matches

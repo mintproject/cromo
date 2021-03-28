@@ -1,4 +1,3 @@
-from json.encoder import JSONEncoder
 from pathlib import Path
 
 from click.types import DateTime
@@ -9,8 +8,8 @@ import semver
 import click
 from cromo import _utils
 from cromo._utils import get_cromo_logger
-from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets
-from cromo.catalogs.model_catalog import getAllModelConfigurationSetups, getModelConfigurationDetails, getAllModelConfigurations
+from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
+from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurationSetups, getModelConfigurationDetails, getAllModelConfigurations, getModelRules, parseModelRule
 
 logging = get_cromo_logger()
 
@@ -69,65 +68,20 @@ def start(scenario, region_geojson, start_date, end_date):
     print("- Start Date: {}, End Date: {}\n".format(start_date, end_date))
 
     print("Searching models...", end='\r')
-
     configs = find_models(scenario)
-    
     print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
     # For each model, get input details
     for config in configs:
-        print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
-        config = getModelConfigurationDetails(config)
         if config.has_input is not None:
-            for input in config.has_input:
-                #print(input)
-                if input.has_presentation is not None:
-                    print("\tInput: {}".format(input.label[0]))
-                    variables = []
-                    for pres in input.has_presentation:
-                        if pres.has_standard_variable is not None:
-                            variables.append(pres.has_standard_variable[0].label[0])
-                    print("\tVariables: {}".format(str(variables)))
+            print(config.id)
+            rules = getModelRules(config.id)
+            
+            # FIXME: For now only proceeding if there are rules for this model
+            if len(rules) > 0:
+                print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
+                checkConfigViability(config, region_geojson, start_date, end_date)
 
-                    print("\t\tSearching datasets...", end='\r')
-
-                    datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
-                    
-                    print("{}".format(''.join([' ']*100)), end='\r') # Clear line
-
-                    if len(datasets) == 0:
-                        print("\r\t\tNo datasets found in data catalog matching input variables")
-                    else:
-                        matches = match_typed_datasets(datasets, input.type)
-                        if len(matches) == 0:
-                            print("\r\t\tNo datasets found in data catalog for matching type. Showing all datasets for matching input variables")
-                            matches = datasets
-                        for ds in matches:
-                            meta = ds["dataset_metadata"]
-                            print("\r\t\t* {}".format(ds["dataset_name"]))
-                            if "source" in meta:
-                                print("\t\t\t- Source: {}".format(meta["source"]))
-                            if "version" in meta:
-                                print("\t\t\t- Version: {}".format(meta["version"]))
-
-                            print("\t\t\t- Fetching resources...", end='\r')
-
-                            resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
-                            
-                            print("{}".format(''.join([' ']*100)), end='\r') # Clear line
-                            print("\r\t\t\t- {} resources".format(len(resources)))
-        else:
-            print("\tNo Inputs for this model")
-    
-
-def match_typed_datasets(datasets, types):
-    matches = []
-    for ds in datasets:
-        if "datatype" in ds["dataset_metadata"]:
-            dtype = "https://w3id.org/wings/export/MINT#{}".format(ds["dataset_metadata"]["datatype"])
-            if dtype in types:
-                matches.append(ds)
-    return matches
 
 def find_models(scenario):
     # Get all matching model configurations (or setups ?)
