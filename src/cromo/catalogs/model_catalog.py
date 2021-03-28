@@ -1,6 +1,7 @@
 
 from os import read
 import re
+from time import sleep
 from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog import api_client, configuration
 from modelcatalog.api.model_configuration_api import ModelConfigurationApi
@@ -8,7 +9,7 @@ from modelcatalog.api.model_configuration_setup_api import ModelConfigurationSet
 from modelcatalog.api.variable_presentation_api import VariablePresentationApi
 from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog.exceptions import ApiException
-from cromo.catalogs.data_catalog import getMatchingDatasets
+from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
 from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_USERNAME, ONTOLOGY_DIR, RULES_DIR, getLocalName
 
 from owlready2 import *
@@ -130,6 +131,18 @@ def parseModelRule(rule):
     return ruleinputs
 
 
+def getDerivedVariableValues(config, input_urls, derived_variable, region_geojson, start_date, end_date):
+    # TODO: Run code here to generate the derived_variable
+    # - Have a mapping for datatype:variable to code
+    # - Run the code and return all relevant derived variables
+    sleep(2)
+    if re.match(".*wind_speed", derived_variable) is not None:
+        return {
+            "min_wind_speed": 10,
+            "average_wind_speed": 24
+        }
+    return {}
+
 
 # Check which inputs do we have to process: { i, m } (input and metadata from that input)
 # - Get datasets for these inputs : { dj }
@@ -143,63 +156,102 @@ def parseModelRule(rule):
 #   - Check if the model is valid
 
 def checkConfigViability(config, region_geojson, start_date, end_date):
-    #print("Get model IO details...", end='\r')
-    #config = getModelConfigurationDetails(config)
-    #print("{}".format(''.join([' ']*100)), end='\r') # Clear line
-    
+
     rules = getModelRules(config.id)
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
     with onto:
+        relevant_input_variables = {}
         for r in rules:
             rule = Imp()
             rule.set_as_rule(r)
             ruleinputs = parseModelRule(rule)
-            print(ruleinputs)
+            for rinput in ruleinputs:
+                ivar = rinput["input"]
+                if ivar not in relevant_input_variables:
+                    relevant_input_variables[ivar] = []
+                relevant_input_variables[ivar].append(rinput["variable"])
+
+        print("Get model IO details...", end='\r')
+        config = getModelConfigurationDetails(config)
+        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
         exobj = onto.ModelExecution(config.id)
-        exobj.hasInput = []
+        exobj.hasModelInput = []
 
         for input in config.has_input:
+            input_label = input.label[0]
+            print(input_label)
+
             inobj = onto.ModelInput(input.id)
-            exobj.hasInput.append(inobj)
-            continue
+            inobj.hasLabel = input_label
+            inobj.hasDataBinding = []
+            exobj.hasModelInput.append(inobj)
 
-            #print(input)
-            if input.has_presentation is not None:
-                print("\tInput: {}".format(input.label[0]))
-                variables = []
-                for pres in input.has_presentation:
-                    if pres.has_standard_variable is not None:
-                        variables.append(pres.has_standard_variable[0].label[0])
-                print("\tVariables: {}".format(str(variables)))
+            # If this input is used in the rule
+            if input_label in relevant_input_variables:
+                # Get the variable to derive for this input
+                derived_variables = relevant_input_variables[input_label]
 
-                print("\t\tSearching datasets...", end='\r')
+                # Fetch dataset information for this input from the data catalog
+                if input.has_presentation is not None:
+                    print("\tInput: {}".format(input_label))
+                    # Get Variables for this input
+                    variables = []
+                    for pres in input.has_presentation:
+                        if pres.has_standard_variable is not None:
+                            variables.append(pres.has_standard_variable[0].label[0])
+                    #print("\tVariables: {}".format(str(variables)))
 
-                datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
-                
-                print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+                    print("\t\tSearching datasets...", end='\r')
+                    datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
+                    print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-                if len(datasets) == 0:
-                    print("\r\t\tNo datasets found in data catalog matching input variables")
-                else:
-                    matches = matchTypedDatasets(datasets, input.type)
-                    if len(matches) == 0:
-                        print("\r\t\tNo datasets found in data catalog for matching type. Showing all datasets for matching input variables")
-                        matches = datasets
-                    for ds in matches:
-                        meta = ds["dataset_metadata"]
-                        print("\r\t\t* {}".format(ds["dataset_name"]))
-                        if "source" in meta:
-                            print("\t\t\t- Source: {}".format(meta["source"]))
-                        if "version" in meta:
-                            print("\t\t\t- Version: {}".format(meta["version"]))
+                    if len(datasets) == 0:
+                        print("\r\t\tNo datasets found in data catalog matching input variables")
+                    else:
+                        # Get datasets that match the input type as well
+                        matches = matchTypedDatasets(datasets, input.type)
+                        if len(matches) == 0:
+                            print("\r\t\tNo datasets found in data catalog for matching type")
 
-                        print("\t\t\t- Fetching resources...", end='\r')
+                        for ds in matches:
+                            dsobj = onto.DataBinding(ds["dataset_id"])
+                            inobj.hasDataBinding.append(dsobj)
+                            dsobj.hasVariable = []
 
-                        resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
-                        
-                        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
-                        print("\r\t\t\t- {} resources".format(len(resources)))
+                            meta = ds["dataset_metadata"]
+                            print("\r\t\t* {}".format(ds["dataset_name"]))
+                            if "source" in meta:
+                                print("\t\t\t- Source: {}".format(meta["source"]))
+                            if "version" in meta:
+                                print("\t\t\t- Version: {}".format(meta["version"]))
+
+                            print("\t\t\t- Fetching resources...", end='\r')
+                            resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
+                            print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+
+                            print("\r\t\t\t- {} resources".format(len(resources)))
+                            resource_urls = list(map(lambda res: res["resource_data_url"], resources))
+
+                            print("\t\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
+                            derived_variable_values = {}
+                            for derived_variable in derived_variables:
+                                values = getDerivedVariableValues(config, resource_urls, derived_variable, region_geojson, start_date, end_date)
+                                derived_variable_values.update(values)
+                            
+                            print("{}".format(''.join([' ']*200)), end='\r') # Clear line
+
+                            for dv,dvv in derived_variable_values.items():
+                                dvarobj = onto.Variable()
+                                dvarobj.hasLabel = dv
+                                dvarobj.hasValue = dvv
+                                dsobj.hasVariable.append(dvarobj)
+                            
+                            sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
+
+                            print("OK ? : {}".format(exobj.isValid))
+                            print("Why OK ? : {}".format(exobj.hasValidityReason))
+                            print("Why not OK ? : {}".format(exobj.hasInvalidityReason))
 
 
 # ?ex

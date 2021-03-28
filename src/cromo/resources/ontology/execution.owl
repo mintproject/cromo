@@ -76,9 +76,19 @@
     
 
 
+    <!-- https://w3id.org/mint/execution.owl#hasInvalidityReason -->
+
+    <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasInvalidityReason">
+        <rdfs:domain rdf:resource="https://w3id.org/mint/execution.owl#ModelExecution"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
     <!-- https://w3id.org/mint/execution.owl#hasLabel -->
 
     <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasLabel">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain>
             <owl:Class>
                 <owl:unionOf rdf:parseType="Collection">
@@ -92,11 +102,20 @@
     
 
 
+    <!-- https://w3id.org/mint/execution.owl#hasValidityReason -->
+
+    <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasValidityReason">
+        <rdfs:domain rdf:resource="https://w3id.org/mint/execution.owl#ModelExecution"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    </owl:DatatypeProperty>
+    
+
+
     <!-- https://w3id.org/mint/execution.owl#hasValue -->
 
     <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasValue">
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain rdf:resource="https://w3id.org/mint/execution.owl#Variable"/>
-        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#double"/>
     </owl:DatatypeProperty>
     
 

@@ -74,7 +74,7 @@ def start(scenario, region_geojson, start_date, end_date):
     # For each model, get input details
     for config in configs:
         if config.has_input is not None:
-            print(config.id)
+            #print(config.id)
             rules = getModelRules(config.id)
             
             # FIXME: For now only proceeding if there are rules for this model

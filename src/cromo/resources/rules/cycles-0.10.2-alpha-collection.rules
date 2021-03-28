@@ -1,0 +1,47 @@
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "cycles_weather_soil"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "average_wind_speed"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 20)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Average Wind Speed is >= 20")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "cycles_weather_soil"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "average_wind_speed"),
+hasValue(?v, ?val),
+lessThan(?val, 20)
+-> 
+isValid(?ex, false),
+hasInvalidityReason(?ex, "Average Wind Speed should be >= 20")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "cycles_weather_soil"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "min_wind_speed"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 15)
+-> 
+isValid(?ex, true),
+hasInvalidityReason(?ex, "Minimum Wind Speed is >= 15")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "cycles_weather_soil"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "min_wind_speed"),
+hasValue(?v, ?val),
+lessThan(?val, 15)
+-> 
+isValid(?ex, false),
+hasInvalidityReason(?ex, "Minimum Wind Speed should be >= 15")

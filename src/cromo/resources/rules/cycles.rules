@@ -1,9 +1,0 @@
-ModelExecution(?ex), 
-hasModelInput(?ex, ?i),
-hasLabel(?i, "cycles_weather"),
-hasDataBinding(?i, ?ds),
-hasVariable(?ds, ?v),
-hasLabel(?v, "average_wind_speed"),
-hasValue(?v, ?val),
-greaterThan(?val, 20)
--> isValid(?ex, true)
