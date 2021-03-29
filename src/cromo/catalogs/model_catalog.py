@@ -1,6 +1,7 @@
 
-from os import read
 import re
+import copy
+import itertools
 from time import sleep
 from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog import api_client, configuration
@@ -144,6 +145,13 @@ def getDerivedVariableValues(config, input_urls, derived_variable, region_geojso
     return {}
 
 
+def runExecutionRules(onto, rules):
+    with onto:
+        for r in rules:
+            rule = Imp()
+            rule.set_as_rule(r)
+    
+
 # Check which inputs do we have to process: { i, m } (input and metadata from that input)
 # - Get datasets for these inputs : { dj }
 # - Run the variable generation code on each of them
@@ -158,9 +166,9 @@ def getDerivedVariableValues(config, input_urls, derived_variable, region_geojso
 def checkConfigViability(config, region_geojson, start_date, end_date):
 
     rules = getModelRules(config.id)
+    relevant_input_variables = {}    
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
     with onto:
-        relevant_input_variables = {}
         for r in rules:
             rule = Imp()
             rule.set_as_rule(r)
@@ -171,97 +179,114 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                     relevant_input_variables[ivar] = []
                 relevant_input_variables[ivar].append(rinput["variable"])
 
-        print("Get model IO details...", end='\r')
-        config = getModelConfigurationDetails(config)
-        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-        exobj = onto.ModelExecution(config.id)
-        exobj.hasModelInput = []
+    print("Get model IO details...", end='\r')
+    config = getModelConfigurationDetails(config)
+    print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-        for input in config.has_input:
-            input_label = input.label[0]
-            print(input_label)
+    input_djmvs = {}
 
-            inobj = onto.ModelInput(input.id)
-            inobj.hasLabel = input_label
-            inobj.hasDataBinding = []
-            exobj.hasModelInput.append(inobj)
+    for input in config.has_input:
+        input_label = input.label[0]
 
-            # If this input is used in the rule
-            if input_label in relevant_input_variables:
-                # Get the variable to derive for this input
-                derived_variables = relevant_input_variables[input_label]
+        # If this input is used in the rule
+        if input_label in relevant_input_variables:
+            # Get the variable to derive for this input
+            derived_variables = relevant_input_variables[input_label]
 
-                # Fetch dataset information for this input from the data catalog
-                if input.has_presentation is not None:
-                    print("\tInput: {}".format(input_label))
-                    # Get Variables for this input
-                    variables = []
-                    for pres in input.has_presentation:
-                        if pres.has_standard_variable is not None:
-                            variables.append(pres.has_standard_variable[0].label[0])
-                    #print("\tVariables: {}".format(str(variables)))
+            # Fetch dataset information for this input from the data catalog
+            if input.has_presentation is not None:
+                print("\tInput: {}".format(input_label))
+                # Get Variables for this input
+                variables = []
+                for pres in input.has_presentation:
+                    if pres.has_standard_variable is not None:
+                        variables.append(pres.has_standard_variable[0].label[0])
+                #print("\tVariables: {}".format(str(variables)))
 
-                    print("\t\tSearching datasets...", end='\r')
-                    datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
-                    print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+                print("\t\tSearching datasets...", end='\r')
+                datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
+                print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-                    if len(datasets) == 0:
-                        print("\r\t\tNo datasets found in data catalog matching input variables")
-                    else:
-                        # Get datasets that match the input type as well
-                        matches = matchTypedDatasets(datasets, input.type)
-                        if len(matches) == 0:
-                            print("\r\t\tNo datasets found in data catalog for matching type")
+                djmvs = []
+                if len(datasets) == 0:
+                    print("\r\t\tNo datasets found in data catalog matching input variables")
+                else:
+                    # Get datasets that match the input type as well
+                    matches = matchTypedDatasets(datasets, input.type)
+                    if len(matches) == 0:
+                        print("\r\t\tNo datasets found in data catalog for matching type")
 
-                        for ds in matches:
-                            dsobj = onto.DataBinding(ds["dataset_id"])
-                            inobj.hasDataBinding.append(dsobj)
-                            dsobj.hasVariable = []
+                    for ds in matches:
+                        meta = ds["dataset_metadata"]
+                        print("\r\t\t* {}".format(ds["dataset_name"]))
+                        if "source" in meta:
+                            print("\t\t\t- Source: {}".format(meta["source"]))
+                        if "version" in meta:
+                            print("\t\t\t- Version: {}".format(meta["version"]))
 
-                            meta = ds["dataset_metadata"]
-                            print("\r\t\t* {}".format(ds["dataset_name"]))
-                            if "source" in meta:
-                                print("\t\t\t- Source: {}".format(meta["source"]))
-                            if "version" in meta:
-                                print("\t\t\t- Version: {}".format(meta["version"]))
+                        print("\t\t\t- Fetching resources...", end='\r')
+                        resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
+                        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-                            print("\t\t\t- Fetching resources...", end='\r')
-                            resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
-                            print("{}".format(''.join([' ']*100)), end='\r') # Clear line
+                        print("\r\t\t\t- {} resources".format(len(resources)))
+                        resource_urls = list(map(lambda res: res["resource_data_url"], resources))
 
-                            print("\r\t\t\t- {} resources".format(len(resources)))
-                            resource_urls = list(map(lambda res: res["resource_data_url"], resources))
-
-                            print("\t\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
-                            derived_variable_values = {}
-                            for derived_variable in derived_variables:
+                        print("\t\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
+                        derived_variable_values = {}
+                        for derived_variable in derived_variables:
+                            if derived_variable not in derived_variable_values:
                                 values = getDerivedVariableValues(config, resource_urls, derived_variable, region_geojson, start_date, end_date)
                                 derived_variable_values.update(values)
-                            
-                            print("{}".format(''.join([' ']*200)), end='\r') # Clear line
+                        
+                        print("{}".format(''.join([' ']*200)), end='\r') # Clear line
 
-                            for dv,dvv in derived_variable_values.items():
-                                dvarobj = onto.Variable()
-                                dvarobj.hasLabel = dv
-                                dvarobj.hasValue = dvv
-                                dsobj.hasVariable.append(dvarobj)
-                            
-                            sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
+                        djmvs.append({
+                            "dj": ds["dataset_id"],
+                            "mv": derived_variable_values
+                        })
 
-                            print("OK ? : {}".format(exobj.isValid))
-                            print("Why OK ? : {}".format(exobj.hasValidityReason))
-                            print("Why not OK ? : {}".format(exobj.hasInvalidityReason))
+                input_djmvs[input_label] = djmvs
 
+    # Create Cross product combinations across all input djmvs
+    keys = list(input_djmvs.keys())
+    values = list(input_djmvs.values())
+    products = list(itertools.product(*values))
+    input_djmv_combos = []
+    for prod in products:
+        combo = {}
+        for i in range(0, len(keys)):
+            combo[keys[i]] = prod[i]
+        input_djmv_combos.append(combo)
 
-# ?ex
-# -> hasInput
-#     -> hasLabel "cycles_weather"
-#     -> hasBinding
-#         -> id "asdfasdfasdf"
-#         -> hasVariable
-#             -> hasLabel "min_wind_speed"
-#             -> hasValue "10"
-#         -> hasVariable
-#             -> hasLabel "average_wind_speed"
-#             -> hasValue "24"
+    # For each combination, create an onto, and run the rules
+    # Check if the combination is valid
+    for input_djmv_combo in input_djmv_combos:
+        print("\tTrying input combo: {}".format(input_djmv_combo))
+        onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
+        with onto:
+            exobj = onto.ModelExecution()
+            exobj.hasModelInput = []
+            for r in rules:
+                rule = Imp()
+                rule.set_as_rule(r)
+            for input_label, djmv in input_djmv_combo.items():
+                inobj = onto.ModelInput()
+                inobj.hasLabel = input_label
+                inobj.hasDataBinding = []
+                exobj.hasModelInput.append(inobj)
+        
+                dsobj = onto.DataBinding()
+                inobj.hasDataBinding.append(dsobj)
+                dsobj.hasVariable = []
+
+                for dv,dvv in djmv["mv"].items():
+                    dvarobj = onto.Variable()
+                    dvarobj.hasLabel = dv
+                    dvarobj.hasValue = dvv
+                    dsobj.hasVariable.append(dvarobj)
+                        
+            sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
+            print("\t- Valid ? : {}".format(exobj.isValid))
+            print("\t- Why Valid ? : {}".format(exobj.hasValidityReason))
+            print("\t- Why Not Valid ? : {}".format(exobj.hasInvalidityReason))
