@@ -8,11 +8,9 @@ import semver
 import click
 from cromo import _utils
 from cromo._utils import get_cromo_logger
-from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
-from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurationSetups, getModelConfigurationDetails, getAllModelConfigurations, getModelRules, parseModelRule
+from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurations, getModelRules
 
 logging = get_cromo_logger()
-
 
 @click.group()
 @click.option("--verbose", "-v", default=0, count=True)
