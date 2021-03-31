@@ -74,11 +74,15 @@ def start(scenario, region_geojson, start_date, end_date):
         if config.has_input is not None:
             #print(config.id)
             rules = getModelRules(config.id)
-            
+
             # FIXME: For now only proceeding if there are rules for this model
             if len(rules) > 0:
                 print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
                 checkConfigViability(config, region_geojson, start_date, end_date)
+        #    else:
+        #        print(config.label[0] + " (" + config.id + ") has no rules")
+        #else:
+        #    print(config.label[0] + " has no inputs")
 
 
 def find_models(scenario):

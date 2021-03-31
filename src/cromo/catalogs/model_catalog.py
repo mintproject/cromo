@@ -69,7 +69,7 @@ def getModelConfigurationDetails(config):
 def getModelRules(configid):
     rules = []
     try:
-        currule = ""        
+        currule = ""
         with open("{}/{}.rules".format(RULES_DIR, getLocalName(configid))) as fd:
             for rule in fd.readlines():
                 srule = rule.strip()
@@ -150,7 +150,7 @@ def runExecutionRules(onto, rules):
         for r in rules:
             rule = Imp()
             rule.set_as_rule(r)
-    
+
 
 # Check which inputs do we have to process: { i, m } (input and metadata from that input)
 # - Get datasets for these inputs : { dj }
@@ -166,7 +166,7 @@ def runExecutionRules(onto, rules):
 def checkConfigViability(config, region_geojson, start_date, end_date):
 
     rules = getModelRules(config.id)
-    relevant_input_variables = {}    
+    relevant_input_variables = {}
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
     with onto:
         for r in rules:

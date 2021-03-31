@@ -1,0 +1,23 @@
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "moisture.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "fuel_moisture_content_array"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 20)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Average Fuel Moisture Speed is >= 20")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "moisture.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "fuel_moisture_content_array"),
+hasValue(?v, ?val),
+lessThan(?val, 20)
+-> 
+isValid(?ex, false),
+hasInvalidityReason(?ex, "Average Fuel Moisture should be >= 20")
