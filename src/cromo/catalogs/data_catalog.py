@@ -9,9 +9,9 @@ def getMatchingDatasets(variables, geojson_file, start_date, end_date):
         geojson = json.load(fd)
         data = {
             "standard_variable_names__in": variables,
-            "spatial_coverage__intersects": geojson["geometry"],
-            "start_time__lte": dateTimeToXSD(start_date),
-            "end_time__gte": dateTimeToXSD(end_date),
+            #"spatial_coverage__intersects": geojson["geometry"],
+            #"start_time__lte": dateTimeToXSD(end_date),
+            #"end_time__gte": dateTimeToXSD(start_date),
             "limit": 100
         }
         response = requests.post(
@@ -31,10 +31,10 @@ def getMatchingDatasetResources(dsid, geojson_file, start_date, end_date):
             "dataset_id": dsid,
             "filter": {
                 "spatial_coverage__intersects": geojson["geometry"],
-                "start_time__lte": dateTimeToXSD(start_date),
-                "end_time__gte": dateTimeToXSD(end_date)
+                #"start_time__lte": dateTimeToXSD(end_date),
+                #"end_time__gte": dateTimeToXSD(start_date)
             },
-            "limit": 5000            
+            "limit": 5000
         }
         response = requests.post(
             url= DATA_CATALOG_URL + "/datasets/dataset_resources",

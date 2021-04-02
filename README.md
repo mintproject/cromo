@@ -10,4 +10,4 @@ Example Usage
 * Clone the repository
 * Go to the cromo directory
 * Run the following
-`cromo search start Cycles src/cromo/test/awash.geojson "2016-01-01" "2017-01-01"`
+`cromo search start Fire src/cromo/test/georgetown.geojson "2020-10-20" "2020-10-30"

@@ -15,6 +15,8 @@ from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_U
 
 from owlready2 import *
 
+from cromo.metadata.sensors import SENSORS
+
 MC_API_CLIENT=api_client.ApiClient(configuration.Configuration(host=MODEL_CATALOG_URL))
 
 onto_path.append(ONTOLOGY_DIR)
@@ -134,16 +136,16 @@ def parseModelRule(rule):
     return ruleinputs
 
 
-def getDerivedVariableValues(config, input_urls, derived_variable, region_geojson, start_date, end_date):
+def getDerivedVariableValues(config, input_type, input_urls, derived_variable, region_geojson, start_date, end_date):
     # TODO: Run code here to generate the derived_variable
     # - Have a mapping for datatype:variable to code
     # - Run the code and return all relevant derived variables
-    sleep(2)
-    if re.match(".*wind_speed", derived_variable) is not None:
-        return {
-            "min_wind_speed": 10,
-            "average_wind_speed": 24
-        }
+    if derived_variable in SENSORS:
+        typefns = SENSORS[derived_variable]
+        if input_type in typefns:
+            fn = typefns[input_type]
+            res = fn(input_urls, region_geojson, start_date, end_date)
+            return res["values"]
     return {}
 
 
@@ -179,7 +181,8 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                 ivar = rinput["input"]
                 if ivar not in relevant_input_variables:
                     relevant_input_variables[ivar] = []
-                relevant_input_variables[ivar].append(rinput["variable"])
+                if rinput["variable"] not in relevant_input_variables[ivar]:
+                    relevant_input_variables[ivar].append(rinput["variable"])
 
 
     print("Get model IO details...", end='\r')
@@ -215,7 +218,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                     print("\r\t\tNo datasets found in data catalog matching input variables: {}".format(variables))
                 else:
                     # Get datasets that match the input type as well
-                    matches = matchTypedDatasets(datasets, input.type)
+                    matches = datasets #matchTypedDatasets(datasets, input.type)
                     if len(matches) == 0:
                         print("\r\t\tNo datasets found in data catalog for matching type")
 
@@ -238,7 +241,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                         derived_variable_values = {}
                         for derived_variable in derived_variables:
                             if derived_variable not in derived_variable_values:
-                                values = getDerivedVariableValues(config, resource_urls, derived_variable, region_geojson, start_date, end_date)
+                                values = getDerivedVariableValues(config, meta["datatype"], resource_urls, derived_variable, region_geojson, start_date, end_date)
                                 derived_variable_values.update(values)
                         
                         print("{}".format(''.join([' ']*200)), end='\r') # Clear line
@@ -292,3 +295,4 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
             print("\t- Valid ? : {}".format(exobj.isValid))
             print("\t- Why Valid ? : {}".format(exobj.hasValidityReason))
             print("\t- Why Not Valid ? : {}".format(exobj.hasInvalidityReason))
+            onto.destroy()

@@ -13,10 +13,10 @@ hasValidityReason(?ex, "Valid for any slope")
 
 ModelExecution(?ex), 
 hasModelInput(?ex, ?i),
-hasLabel(?i, "topo.dat"),
+hasLabel(?i, "wind.csv"),
 hasDataBinding(?i, ?ds),
 hasVariable(?ds, ?v),
-hasLabel(?v, "mean_wind_speed"),
+hasLabel(?v, "mean_wind_10"),
 hasValue(?v, ?val)
 -> 
 isValid(?ex, true),

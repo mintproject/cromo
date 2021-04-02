@@ -22,4 +22,4 @@ hasValue(?v, ?val),
 greaterThanOrEqual(?val, 20)
 -> 
 isValid(?ex, false),
-hasValidityReason(?ex, "Mean slope should be < 20%")
+hasInvalidityReason(?ex, "Mean slope should be < 20%")
