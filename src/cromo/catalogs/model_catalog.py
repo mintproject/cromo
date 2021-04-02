@@ -73,6 +73,8 @@ def getModelRules(configid):
         with open("{}/{}.rules".format(RULES_DIR, getLocalName(configid))) as fd:
             for rule in fd.readlines():
                 srule = rule.strip()
+                if re.match("^#", srule):
+                    continue
                 if srule == "":
                     rules.append(currule)
                     currule = ""
@@ -210,7 +212,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
 
                 djmvs = []
                 if len(datasets) == 0:
-                    print("\r\t\tNo datasets found in data catalog matching input variables")
+                    print("\r\t\tNo datasets found in data catalog matching input variables: {}".format(variables))
                 else:
                     # Get datasets that match the input type as well
                     matches = matchTypedDatasets(datasets, input.type)

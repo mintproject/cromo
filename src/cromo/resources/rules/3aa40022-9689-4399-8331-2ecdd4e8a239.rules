@@ -1,0 +1,23 @@
+# Quic-Fire MAX 
+# - No limitations
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_slope"),
+hasValue(?v, ?val)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Valid for any slope")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_wind_speed"),
+hasValue(?v, ?val)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Valid for any wind speed")

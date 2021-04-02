@@ -1,0 +1,49 @@
+# Quic-Fire Flat Terrain, Low Wind
+# - Only runs where slope < 20%, Wind < 1m/s
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_slope"),
+hasValue(?v, ?val),
+lessThan(?val, 20)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Mean slope < 20%")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_slope"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 20)
+-> 
+isValid(?ex, false),
+hasValidityReason(?ex, "Mean slope should be < 20%")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "wind.csv"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_wind_speed"),
+hasValue(?v, ?val),
+lessThan(?val, 1)
+-> 
+isValid(?ex, true),
+hasValidityReason(?ex, "Mean wind speed < 1 m/s")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "wind.csv"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_wind_speed"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 1)
+-> 
+isValid(?ex, false),
+hasValidityReason(?ex, "Mean wind speed should be < 1 m/s")
