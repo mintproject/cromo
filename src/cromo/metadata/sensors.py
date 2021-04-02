@@ -1,8 +1,11 @@
 import pandas as pd
 import sys
 import json
+import geojson
+import requests
+from requests.api import request
 
-def getMeanWindSpeedFromGustsFile(inputs, geojson, start_date, end_date):
+def getMeanWindSpeedFromGustsFile(inputs, geojson_file, start_date, end_date):
     input = inputs[0]
     df = pd.read_csv(input,skiprows=8, header=None)
     min_df = df.min()
@@ -27,16 +30,27 @@ def getMeanWindSpeedFromGustsFile(inputs, geojson, start_date, end_date):
     return res
 
 
-def getMeanSlopeFromAPI(inputs, geojson, start_date, end_date):
-    print(geojson)
-    #val = https://sdge.sdsc.edu/pylaski/app/fastfuels/elevation?bbox=-120.840449,38.920212,-120.835169,38.923656
-    val = {"mean_elevation": 787.8670450428692, "mean_slope": 20.09848326408428, "units": {"mean_elevation": "m", "mean_slope": "%"}}
-    units = val["units"]
-    del val["units"]
-    return {
-        "values": val,
-        "units": units
-    }
+def bbox(coord_list):
+     box = []
+     for i in (0,1):
+         res = sorted(coord_list, key=lambda x:x[i])
+         box.append((res[0][i],res[-1][i]))
+     ret = f"{box[0][0]},{box[1][0]},{box[0][1]},{box[1][1]}"
+     return ret
+
+def getMeanSlopeFromAPI(inputs, geojson_file, start_date, end_date):
+    with open(geojson_file) as fd:
+        feature = geojson.load(fd)
+        boundingBox = bbox(list(geojson.utils.coords(feature)))
+        url = f"https://sdge.sdsc.edu/pylaski/app/fastfuels/elevation?bbox={boundingBox}"
+        val = requests.get(url).json()
+        #val = {"mean_elevation": 787.8670450428692, "mean_slope": 20.09848326408428, "units": {"mean_elevation": "m", "mean_slope": "%"}}
+        units = val["units"]
+        del val["units"]
+        return {
+            "values": val,
+            "units": units
+        }
 
 SENSORS = {
     "mean_wind_10": {

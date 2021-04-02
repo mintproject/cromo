@@ -136,7 +136,12 @@ def parseModelRule(rule):
     return ruleinputs
 
 
+CACHED_DERIVED_VARIABLES = {}
 def getDerivedVariableValues(config, input_type, input_urls, derived_variable, region_geojson, start_date, end_date):
+    key = "{}-{}-{}-{}-{}".format(input_urls, derived_variable, region_geojson, start_date, end_date)
+    if key in CACHED_DERIVED_VARIABLES:
+        return CACHED_DERIVED_VARIABLES[key]
+
     # TODO: Run code here to generate the derived_variable
     # - Have a mapping for datatype:variable to code
     # - Run the code and return all relevant derived variables
@@ -145,6 +150,7 @@ def getDerivedVariableValues(config, input_type, input_urls, derived_variable, r
         if input_type in typefns:
             fn = typefns[input_type]
             res = fn(input_urls, region_geojson, start_date, end_date)
+            CACHED_DERIVED_VARIABLES[key] = res["values"]
             return res["values"]
     return {}
 
@@ -168,7 +174,6 @@ def runExecutionRules(onto, rules):
 #   - Check if the model is valid
 
 def checkConfigViability(config, region_geojson, start_date, end_date):
-
     rules = getModelRules(config.id)
     relevant_input_variables = {}
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
