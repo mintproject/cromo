@@ -220,7 +220,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
 
                 djmvs = []
                 if len(datasets) == 0:
-                    print("\r\t\tNo datasets found in data catalog matching input variables: {}".format(variables))
+                    print("\r\t\tNo datasets found in data catalog matching input variables {} for this region and time period.".format(variables))
                 else:
                     # Get datasets that match the input type as well
                     matches = datasets #matchTypedDatasets(datasets, input.type)
@@ -241,6 +241,9 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
 
                         print("\r\t\t\t- {} resources".format(len(resources)))
                         resource_urls = list(map(lambda res: res["resource_data_url"], resources))
+
+                        if len(resources) == 0:
+                            continue
 
                         print("\t\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
                         derived_variable_values = {}
