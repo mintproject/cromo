@@ -206,7 +206,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
 
             # Fetch dataset information for this input from the data catalog
             if input.has_presentation is not None:
-                print("Input: {}".format(input_label))
+                print("\nInput: {}".format(input_label))
                 # Get Variables for this input
                 variables = []
                 for pres in input.has_presentation:
@@ -214,45 +214,42 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                         variables.append(pres.has_standard_variable[0].label[0])
                 #print("\tVariables: {}".format(str(variables)))
 
-                print("\tSearching datasets...", end='\r')
+                print(f"- Searching datasets containing variables '{variables}' for this region and time period...", end='\r')
                 datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
                 print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
                 djmvs = []
                 if len(datasets) == 0:
-                    print("\r\tNo datasets found in data catalog matching input variables {} for this region and time period.".format(variables))
+                    print("\r- No datasets found in data catalog matching input variables {} for this region and time period.".format(variables))
                 else:
                     # Get datasets that match the input type as well
                     matches = datasets #matchTypedDatasets(datasets, input.type)
                     if len(matches) == 0:
-                        print("\r\tNo datasets found in data catalog for matching type")
+                        print("\r- No datasets found in data catalog for matching type")
 
                     for ds in matches:
                         meta = ds["dataset_metadata"]
-                        print("\r\tDataset:  {}".format(ds["dataset_name"]))
-                        if "source" in meta:
-                            print("\t\t- Source: {}".format(meta["source"]))
-                        if "version" in meta:
-                            print("\t\t- Version: {}".format(meta["version"]))
-
-                        print("\t\t- Fetching resources...", end='\r')
+                        print("\r- Dataset: {} ( Fetching files... )".format(ds["dataset_name"]), end='\r')
+                        
                         resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
-                        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-                        print("\r\t\t- {} resources".format(len(resources)))
+                        print("\r- Dataset: {} ( {} files... )      ".format(ds["dataset_name"], len(resources)))
+
                         resource_urls = list(map(lambda res: res["resource_data_url"], resources))
 
                         if len(resources) == 0:
+                            print("- No files found")
                             continue
 
-                        print("\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
+                        print("\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
                         derived_variable_values = {}
                         for derived_variable in derived_variables:
                             if derived_variable not in derived_variable_values:
                                 values = getDerivedVariableValues(config, meta["datatype"], resource_urls, derived_variable, region_geojson, start_date, end_date)
                                 derived_variable_values.update(values)
-                        
-                        print("{}".format(''.join([' ']*200)), end='\r') # Clear line
+
+                        for dv,dvv in derived_variable_values.items():
+                            print("\t- {} = {}{}".format(dv, dvv, ''.join([' ']*50)))
 
                         djmvs.append({
                             "dj": ds,
@@ -273,7 +270,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
         input_djmv_combos.append(combo)
 
     if len(input_djmv_combos) > 0:
-        print("\nReasoning over model constraints:")
+        print("\nConstraint Reasoning Over MOdel:")
 
     # For each combination, create an onto, and run the rules
     # Check if the combination is valid
@@ -283,8 +280,6 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
         count += 1
         for input_label, djmv in input_djmv_combo.items():
             print("- {} : {}".format(input_label, djmv["dj"]["dataset_name"]))
-            for dv,dvv in djmv["mv"].items():
-                print("\t {} = {}".format(dv, dvv))
 
         onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
         with onto:
