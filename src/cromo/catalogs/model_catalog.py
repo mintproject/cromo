@@ -233,7 +233,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                         
                         resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
 
-                        print("\r- Dataset: {} ( {} files... )      ".format(ds["dataset_name"], len(resources)))
+                        print("\r- Dataset: {} ( {} files... )       ".format(ds["dataset_name"], len(resources)))
 
                         resource_urls = list(map(lambda res: res["resource_data_url"], resources))
 
