@@ -10,6 +10,8 @@ from cromo import _utils
 from cromo.click_encapsulate.commands import start
 from modelcatalog import Configuration
 
+from cromo.constants import ONTOLOGY_DIR, RULES_DIR
+
 
 @click.group()
 @click.option("--verbose", "-v", default=0, count=True)
@@ -38,13 +40,6 @@ You should consider upgrading via the 'pip install --upgrade cromo' command.""",
 def version(debug=False):
     click.echo(f"{Path(sys.argv[0]).name} v{cromo.__version__}")
 
-@click.option('--server', prompt='Model Catalog API',
-              help='The Model Catalog API', required=True, default=Configuration().host, show_default=True)
-@click.option('--username', prompt='Username',
-              help='Your email', required=True, default="mint@isi.edu", show_default=True)
-@click.option('--password', prompt="Password",
-              required=True, hide_input=True, help="Your password")
-@click.option('--name', prompt='Name', help='Your name', required=True)
 
 class OrderedGroup(click.Group):
     def __init__(self, name=None, commands=None, **attrs):

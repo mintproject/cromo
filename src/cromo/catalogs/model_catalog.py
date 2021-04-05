@@ -68,11 +68,11 @@ def getModelConfigurationDetails(config):
     return None
 
 # Fetch rules. TODO: Fetch this from the model catalog
-def getModelRules(configid):
+def getModelRules(configid, rulesdir=RULES_DIR):
     rules = []
     try:
         currule = ""
-        with open("{}/{}.rules".format(RULES_DIR, getLocalName(configid))) as fd:
+        with open("{}/{}.rules".format(rulesdir, getLocalName(configid))) as fd:
             for rule in fd.readlines():
                 srule = rule.strip()
                 if re.match("^#", srule):
@@ -173,8 +173,11 @@ def runExecutionRules(onto, rules):
 #   - Run all model rules ( one by one ?)
 #   - Check if the model is valid
 
-def checkConfigViability(config, region_geojson, start_date, end_date):
-    rules = getModelRules(config.id)
+def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=RULES_DIR, ontdir=ONTOLOGY_DIR):
+    rules = getModelRules(config.id, rulesdir=rulesdir)
+    if ontdir not in onto_path:
+        onto_path.append(ontdir)
+
     relevant_input_variables = {}
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
     with onto:

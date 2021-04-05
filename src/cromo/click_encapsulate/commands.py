@@ -9,6 +9,7 @@ import click
 from cromo import _utils
 from cromo._utils import get_cromo_logger
 from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurations, getModelRules
+from cromo.constants import ONTOLOGY_DIR, RULES_DIR
 
 logging = get_cromo_logger()
 
@@ -59,7 +60,12 @@ You should consider upgrading via 'pip install --upgrade cromo' command.""",
     default=DateTime(),
     required=True
 )
-def start(scenario, region_geojson, start_date, end_date):
+@click.option('--rulesdir', prompt='Rules Directory',
+              help='The directory that contains the model rules', required=True, default=RULES_DIR, show_default=True)
+@click.option('--ontdir', prompt='Ontology Directory',
+              help='The directory that contains the execution ontology', required=True, default=ONTOLOGY_DIR, show_default=True)
+
+def start(scenario, region_geojson, start_date, end_date, rulesdir, ontdir):
     print("SEARCH MODELS")
     print("- Scenario: {}".format(scenario))
     print("- GeoJSON: {}".format(region_geojson))
@@ -73,12 +79,12 @@ def start(scenario, region_geojson, start_date, end_date):
     for config in configs:
         if config.has_input is not None:
             #print(config.id)
-            rules = getModelRules(config.id)
+            rules = getModelRules(config.id, rulesdir=rulesdir)
 
             # FIXME: For now only proceeding if there are rules for this model
             if len(rules) > 0:
                 print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
-                checkConfigViability(config, region_geojson, start_date, end_date)
+                checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=rulesdir, ontdir=ontdir)
         #    else:
         #        print(config.label[0] + " (" + config.id + ") has no rules")
         #else:
