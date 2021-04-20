@@ -47,21 +47,8 @@ def getAllModelConfigurationSetups():
 # Get Input details of a model configuration (or a setup)
 def getModelConfigurationDetails(config):
     try:
-        spec_api = DatasetSpecificationApi(api_client=MC_API_CLIENT)
-        pres_api = VariablePresentationApi(api_client=MC_API_CLIENT)
-        if config.has_input is not None:
-            new_inputs = []
-            for input in config.has_input:
-                new_input = spec_api.datasetspecifications_id_get(getLocalName(input.id), username=DEFAULT_USERNAME)
-                if new_input.has_presentation is not None:
-                    new_presentations = []
-                    for pres in new_input.has_presentation:
-                        if pres.id is not None:
-                            new_presentation = pres_api.variablepresentations_id_get(getLocalName(pres.id), username=DEFAULT_USERNAME)
-                            new_presentations.append(new_presentation)
-                    new_input.has_presentation = new_presentations
-                new_inputs.append(new_input)
-            config.has_input = new_inputs
+        api_instance = ModelConfigurationSetupApi(api_client=MC_API_CLIENT)
+        config = api_instance.custom_modelconfigurationsetups_id_get(getLocalName(config.id), username=DEFAULT_USERNAME)
         return config
     except ApiException as e:
         print("Exception when getting model configuration details({}): {}\n".format(config.id, e))
