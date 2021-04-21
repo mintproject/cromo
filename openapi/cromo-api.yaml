@@ -11,10 +11,31 @@ servers:
   - url: https://cromo.wildfire.mint.isi.edu/v1.0
 
 paths:
+  /searchModels/{scenario}:
+    post:
+      summary: Search Models given a scenario (This does NOT check validity. Please use the other api for each configuration returned)
+      operationId: cromo.api.fetchModelConfigurationsForScenario
+      tags:
+        - validation
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          description: The scenario (example "Fire") to search models for
+          schema:
+            type: string        
+      responses:
+        '200':
+          description: An array of different input data combinations for the configuration along with their validity
+          content:
+            application/json:    
+              schema:
+                $ref: "#/components/schemas/ModelConfigurationInfos"
+
   /validity/{configId}:
     post:
       summary: Check Model Configuration Validity
-      operationId: cromo.api.checkConfigValidityAPI
+      operationId: cromo.api.checkModelConfigurationValidity
       tags:
         - validation
       parameters:
@@ -184,3 +205,18 @@ components:
       maxItems: 3
       items:
         type: number
+
+    ModelConfigurationInfos:
+      type: array
+      description: List of Id and Name of model configurations
+      items:
+        $ref: '#/components/schemas/ModelConfigurationInfo'
+    
+    ModelConfigurationInfo:
+      type: object
+      description: Id and Name of a model configuration
+      properties:
+        id:
+          type: string
+        name:
+          type: string
