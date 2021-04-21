@@ -1,0 +1,186 @@
+openapi: "3.0.0"
+
+info:
+  version: "1.0"
+  title: MINT Constraint Reasoner Over Models (CROMO)
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080/v1.0
+  - url: https://cromo.wildfire.mint.isi.edu/v1.0
+
+paths:
+  /validity/{configId}:
+    post:
+      summary: Check Model Configuration Validity
+      operationId: cromo.api.checkConfigValidityAPI
+      tags:
+        - validation
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          description: The id of the model configuration to check validity for
+          schema:
+            type: string        
+      requestBody:
+        description: A JSON object containing spatial and temporal information
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpatioTemporalInformation"
+
+      responses:
+        '200':
+          description: An array of different input data combinations for the configuration along with their validity
+          content:
+            application/json:    
+              schema:
+                $ref: "#/components/schemas/ModelConfigurationBindingsValidations"
+
+components:
+  schemas:
+  
+    SpatioTemporalInformation:
+      type: object
+      description: Spatial & Temporal Information
+      required:
+        - spatial
+        - temporal
+      properties:
+        spatial:
+          $ref: '#/components/schemas/GeojsonFeature'
+        temporal:
+          $ref: '#/components/schemas/TimeInterval'
+          
+    TimeInterval:
+      type: object
+      description: Time Interval
+      required:
+      - start_date
+      - end_date
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date       
+          
+    GeojsonFeature:
+      type: object
+      description: GeoJSon Feature
+      required:
+       - type
+       - geometry
+      properties:
+        type:
+          type: string
+          enum:
+            - Feature
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          type: object
+          
+    ModelConfigurationBindingsValidations:
+      type: array
+      description: All Model Configuration Binding Combinations and their Validation details returned by CROMO
+      items:
+        $ref: '#/components/schemas/ModelConfigurationBindingsValidation'
+    
+    
+    ModelConfigurationBindingsValidation:
+      type: object
+      description: An individual Model Configuration Input Bindings and its Validation details returned by CROMO
+      properties:
+        inputs:
+          $ref: '#/components/schemas/ModelConfigurationInputBindings'
+        validity:
+          $ref: '#/components/schemas/ModelConfigurationValidity'
+      
+    ModelConfigurationInputBindings:
+      type: array
+      description: Model Configuration Input Bindings
+      items:
+        $ref: '#/components/schemas/ModelConfigurationInputBinding'
+    
+    ModelConfigurationInputBinding:
+      type: object
+      description: Model Configuration Dataset Binding for an input
+      properties:
+        input_id:
+          type: string
+        dataset:
+          $ref: '#/components/schemas/InputDataBinding'
+          
+    InputDataBinding:
+      type: object
+      description: Input Dataset Binding
+      properties:
+        dataset_id:
+          type: string
+        dataset_name:
+          type: string
+        dataset_metadata:
+          type: object
+        derived_variables:
+          $ref: '#/components/schemas/DatasetDerivedVariables'
+  
+    DatasetDerivedVariables:
+      type: array
+      description: List of variables and their values derived from the dataset
+      items:
+        $ref: '#/components/schemas/DatasetDerivedVariable'
+        
+    DatasetDerivedVariable:
+      type: object
+      description: A variable and its value derived from the dataset
+      properties:
+        variable_id: 
+          type: string
+        value: 
+          type: number
+
+    ModelConfigurationValidity:
+      type: object
+      description: Model Configuration validation details for an input binding combination
+      properties:
+        valid:
+          type: boolean
+        validity_reasons:
+          type: array
+          items:
+            type: string
+        invalidity_reasons:
+          type: array
+          items:
+            type: string          
+
+    Geometry:
+      type: object
+      description: GeoJSon geometry
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          type: string
+          description: the geometry type          
+          enum:
+          - Polygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Point3D'
+  
+    Point3D:
+      type: array
+      description: Point in 3D space
+      minItems: 2
+      maxItems: 3
+      items:
+        type: number

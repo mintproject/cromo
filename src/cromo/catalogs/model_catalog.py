@@ -1,14 +1,10 @@
-
 import re
 import copy
+import requests
 import itertools
-from time import sleep
-from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog import api_client, configuration
 from modelcatalog.api.model_configuration_api import ModelConfigurationApi
 from modelcatalog.api.model_configuration_setup_api import ModelConfigurationSetupApi
-from modelcatalog.api.variable_presentation_api import VariablePresentationApi
-from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog.exceptions import ApiException
 from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
 from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_USERNAME, ONTOLOGY_DIR, RULES_DIR, getLocalName
@@ -45,38 +41,50 @@ def getAllModelConfigurationSetups():
 
 
 # Get Input details of a model configuration (or a setup)
-def getModelConfigurationDetails(config):
+def getModelConfigurationDetails(config_id):
     try:
         api_instance = ModelConfigurationSetupApi(api_client=MC_API_CLIENT)
-        config = api_instance.custom_modelconfigurationsetups_id_get(getLocalName(config.id), username=DEFAULT_USERNAME)
+        config = api_instance.custom_modelconfigurationsetups_id_get(getLocalName(config_id), username=DEFAULT_USERNAME)
         return config
     except ApiException as e:
-        print("Exception when getting model configuration details({}): {}\n".format(config.id, e))
+        print("Exception when getting model configuration details({}): {}\n".format(config_id, e))
     return None
 
 # Fetch rules. TODO: Fetch this from the model catalog
-def getModelRules(configid, rulesdir=RULES_DIR):
+def getModelRulesFromFile(configid, rulesdir=RULES_DIR):
     rules = []
     try:
-        currule = ""
         with open("{}/{}.rules".format(rulesdir, getLocalName(configid))) as fd:
-            for rule in fd.readlines():
-                srule = rule.strip()
-                if re.match("^#", srule):
-                    continue
-                if srule == "":
-                    rules.append(currule)
-                    currule = ""
-                else:
-                    currule += srule
-        if currule.strip() != "":
-            rules.append(currule)
-
+            rulestring = fd.read()
+            rules = splitModelRulesString(rulestring)
     except FileNotFoundError as e:
         pass
         #print("Rules file not found for {}: {}".format(configid, e))
     return rules
 
+def getModelRules(config):
+    response = requests.post(
+        url = MODEL_CATALOG_URL + "/custom/constraints"
+    )
+    response = response.json()
+    print(response)
+    return []
+
+def splitModelRulesString(rules_string):
+    rules = []
+    currule = ""
+    for rule in rules_string.splitlines():
+        srule = rule.strip()
+        if re.match("^#", srule):
+            continue
+        if srule == "":
+            rules.append(currule)
+            currule = ""
+        else:
+            currule += srule
+    if currule.strip() != "":
+        rules.append(currule)
+    return rules
 
 class ModelRuleInput:
     def __init__(self, input, variable):
@@ -159,9 +167,23 @@ def runExecutionRules(onto, rules):
 #   - Create a ModelExecution in owlready2 with appropriate values of i, m, mv
 #   - Run all model rules ( one by one ?)
 #   - Check if the model is valid
+def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdir=RULES_DIR, ontdir=ONTOLOGY_DIR):
+    print("Get model IO details...", end='\r')
+    config = getModelConfigurationDetails(configId)
 
-def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=RULES_DIR, ontdir=ONTOLOGY_DIR):
-    rules = getModelRules(config.id, rulesdir=rulesdir)
+    # FIXME: Could also return configs without inputs ?
+    if config.has_input is None:
+        return None
+
+    # FIXME: Change to getModelRules from model catalaog (or config should already have it)
+    rules = getModelRulesFromFile(configId, rulesdir=rulesdir)
+
+    # FIXME: For now only proceeding if there are rules for this model
+    if len(rules) == 0:
+        return None
+
+    print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
+
     if ontdir not in onto_path:
         onto_path.append(ontdir)
 
@@ -179,9 +201,6 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
                 if rinput["variable"] not in relevant_input_variables[ivar]:
                     relevant_input_variables[ivar].append(rinput["variable"])
 
-
-    print("Get model IO details...", end='\r')
-    config = getModelConfigurationDetails(config)
     print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
     input_djmvs = {}
@@ -242,8 +261,8 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
                             print("\t- {} = {}{}".format(dv, dvv, ''.join([' ']*50)))
 
                         djmvs.append({
-                            "dj": ds,
-                            "mv": derived_variable_values
+                            "dataset": ds,
+                            "derived_variables": derived_variable_values
                         })
 
                 input_djmvs[input_label] = djmvs
@@ -262,6 +281,8 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
     if len(input_djmv_combos) > 0:
         print("\nConstraint Reasoning Over MOdel:")
 
+    return_values = []
+
     # For each combination, create an onto, and run the rules
     # Check if the combination is valid
     count = 1
@@ -269,8 +290,9 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
         print("\n------ Data combination {} -------".format(count))
         count += 1
         for input_label, djmv in input_djmv_combo.items():
-            print("- {} : {}".format(input_label, djmv["dj"]["dataset_name"]))
+            print("- {} : {}".format(input_label, djmv["dataset"]["dataset_name"]))
 
+        return_djmv_combo = []
         onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
         with onto:
             exobj = onto.ModelExecution()
@@ -279,6 +301,8 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
                 rule = Imp()
                 rule.set_as_rule(r)
             for input_label, djmv in input_djmv_combo.items():
+                return_djmv = copy.deepcopy(djmv)
+
                 inobj = onto.ModelInput()
                 inobj.hasLabel = input_label
                 inobj.hasDataBinding = []
@@ -288,11 +312,21 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
                 inobj.hasDataBinding.append(dsobj)
                 dsobj.hasVariable = []
 
-                for dv,dvv in djmv["mv"].items():
+                return_derived_variables = []
+                for dv,dvv in djmv["derived_variables"].items():
                     dvarobj = onto.Variable()
                     dvarobj.hasLabel = dv
                     dvarobj.hasValue = dvv
                     dsobj.hasVariable.append(dvarobj)
+                    return_derived_variables.append({
+                        "variable_id": dv,
+                        "value": dvv
+                    })
+                return_djmv["dataset"]["derived_variables"] = return_derived_variables
+                return_djmv_combo.append({
+                    "input_id": input_label,
+                    "dataset": return_djmv["dataset"]
+                })
                         
             sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
             valid = True
@@ -310,4 +344,14 @@ def checkConfigViability(config, region_geojson, start_date, end_date, rulesdir=
             for reason in exobj.hasInvalidityReason:
                 print("\t \u2717 {}".format(reason))
 
+            return_values.append({
+                "inputs": return_djmv_combo,
+                "validity": {
+                    "valid": valid,
+                    "validity_reasons": exobj.hasValidityReason,
+                    "invalidity_reasons": exobj.hasInvalidityReason
+                }
+            })
             onto.destroy()
+
+    return return_values
