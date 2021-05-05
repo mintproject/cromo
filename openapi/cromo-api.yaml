@@ -178,7 +178,16 @@ components:
           type: array
           items:
             type: string          
-
+        recommended:
+          type: boolean
+        recommendation_reasons:
+          type: array
+          items:
+            type: string
+        non_recommendation_reasons:
+          type: array
+          items:
+            type: string   
     Geometry:
       type: object
       description: GeoJSon geometry

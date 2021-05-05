@@ -9,8 +9,8 @@ hasLabel(?v, "mean_slope"),
 hasValue(?v, ?val),
 greaterThanOrEqual(?val, 20)
 -> 
-isValid(?ex, true),
-hasValidityReason(?ex, "Mean slope >= 20%")
+isRecommended(?ex, true),
+hasRecommendationReason(?ex, "Mean slope >= 20%")
 
 ModelExecution(?ex), 
 hasModelInput(?ex, ?i),
@@ -21,5 +21,5 @@ hasLabel(?v, "mean_slope"),
 hasValue(?v, ?val),
 lessThan(?val, 20)
 -> 
-isValid(?ex, false),
-hasInvalidityReason(?ex, "Mean slope should be >= 20%")
+isRecommended(?ex, false),
+hasNonRecommendationReason(?ex, "Mean slope should be >= 20%")

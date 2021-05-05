@@ -8,8 +8,8 @@ hasVariable(?ds, ?v),
 hasLabel(?v, "mean_slope"),
 hasValue(?v, ?val)
 -> 
-isValid(?ex, true),
-hasValidityReason(?ex, "Valid for any slope")
+isRecommended(?ex, true),
+hasRecommendationReason(?ex, "Recommended for any slope")
 
 ModelExecution(?ex), 
 hasModelInput(?ex, ?i),
@@ -19,5 +19,5 @@ hasVariable(?ds, ?v),
 hasLabel(?v, "mean_wind_10"),
 hasValue(?v, ?val)
 -> 
-isValid(?ex, true),
-hasValidityReason(?ex, "Valid for any wind speed")
+isRecommended(?ex, true),
+hasRecommendationReason(?ex, "Recommended for any wind speed")

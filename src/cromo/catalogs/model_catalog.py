@@ -1,4 +1,5 @@
 import re
+import json
 import copy
 import requests
 import itertools
@@ -62,13 +63,16 @@ def getModelRulesFromFile(configid, rulesdir=RULES_DIR):
         #print("Rules file not found for {}: {}".format(configid, e))
     return rules
 
-def getModelRules(config):
-    response = requests.post(
-        url = MODEL_CATALOG_URL + "/custom/constraints"
-    )
-    response = response.json()
-    print(response)
-    return []
+def getModelRulesFromConfig(config):
+    rules = []
+    if config.has_constraint is not None:
+        for cons in config.has_constraint:
+            # TODO: Hack until model catalog api is updaed
+            cons = cons.replace('\"', '\\"').replace("'", '"')
+            consobj = json.loads(cons)
+            for rule in consobj["hasRule"]:
+                rules.extend(splitModelRulesString(rule))
+    return rules
 
 def splitModelRulesString(rules_string):
     rules = []
@@ -176,7 +180,8 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
         return None
 
     # FIXME: Change to getModelRules from model catalaog (or config should already have it)
-    rules = getModelRulesFromFile(configId, rulesdir=rulesdir)
+    # rules = getModelRulesFromFile(configId, rulesdir=rulesdir)
+    rules = getModelRulesFromConfig(config)
 
     # FIXME: For now only proceeding if there are rules for this model
     if len(rules) == 0:
@@ -329,19 +334,30 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
                 })
                         
             sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
+
             valid = True
+            recommended = True            
             for exv in exobj.isValid:
                 if not(exv):
                     valid = False
-            
+            for exr in exobj.isRecommended:
+                if not(exr):
+                    recommended = False
+
             print("")
-            if valid:
-                print("\u2713 VALID")
+            if recommended:
+                print("\u2713 RECOMMENDED")
+            elif valid:
+                print("\u2713 VALID, NOT RECOMMENDED")
             else:
-                print("\u2717 INVALID") 
+                print("\u2717 INVALID, NOT RECOMMENDED") 
             for reason in exobj.hasValidityReason:
                 print("\t \u2713 {}".format(reason))
             for reason in exobj.hasInvalidityReason:
+                print("\t \u2717 {}".format(reason))
+            for reason in exobj.hasRecommendationReason:
+                print("\t \u2713 {}".format(reason))
+            for reason in exobj.hasNonRecommendationReason:
                 print("\t \u2717 {}".format(reason))
 
             return_values.append({
@@ -349,7 +365,10 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
                 "validity": {
                     "valid": valid,
                     "validity_reasons": exobj.hasValidityReason,
-                    "invalidity_reasons": exobj.hasInvalidityReason
+                    "invalidity_reasons": exobj.hasInvalidityReason,
+                    "recommended": recommended,
+                    "recommendation_reasons": exobj.hasRecommendationReason,
+                    "non_recommendation_reasons": exobj.hasNonRecommendationReason                    
                 }
             })
             onto.destroy()

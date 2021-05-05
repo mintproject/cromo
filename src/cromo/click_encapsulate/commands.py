@@ -80,8 +80,8 @@ def start(scenario, geojson_file, start_date, end_date, rulesdir, ontdir):
         region_geojson = geojson.load(fd)
         # For each model, get input details
         for config in configs:
-            viability = checkConfigViability(config.id, region_geojson, start_date, end_date, rulesdir=rulesdir, ontdir=ontdir)
-            print(viability)
+            checkConfigViability(config.id, region_geojson, start_date, end_date, rulesdir=rulesdir, ontdir=ontdir)
+            #print(viability)
 
 
 def find_models(scenario):

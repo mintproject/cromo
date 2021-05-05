@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <rdf:RDF xmlns="https://w3id.org/mint/execution.owl#"
      xml:base="https://w3id.org/mint/execution.owl"
+     xmlns:execution="https://w3id.org/mint/execution.owl#"
      xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
      xmlns:owl="http://www.w3.org/2002/07/owl#"
      xmlns:xml="http://www.w3.org/XML/1998/namespace"
@@ -102,6 +103,18 @@
     
 
 
+    <!-- https://w3id.org/mint/execution.owl#hasNonRecommendationReason -->
+
+    <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasNonRecommendationReason"/>
+    
+
+
+    <!-- https://w3id.org/mint/execution.owl#hasRecommendationReason -->
+
+    <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasRecommendationReason"/>
+    
+
+
     <!-- https://w3id.org/mint/execution.owl#hasValidityReason -->
 
     <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#hasValidityReason">
@@ -117,6 +130,12 @@
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain rdf:resource="https://w3id.org/mint/execution.owl#Variable"/>
     </owl:DatatypeProperty>
+    
+
+
+    <!-- https://w3id.org/mint/execution.owl#isRecommended -->
+
+    <owl:DatatypeProperty rdf:about="https://w3id.org/mint/execution.owl#isRecommended"/>
     
 
 
