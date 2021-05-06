@@ -335,22 +335,29 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
                         
             sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
 
-            valid = True
-            recommended = True            
+            valid = None
+            recommended = None            
             for exv in exobj.isValid:
+                if exv and valid is None:
+                    valid = True
                 if not(exv):
                     valid = False
             for exr in exobj.isRecommended:
+                if exr and recommended is None:
+                    recommended = True
                 if not(exr):
                     recommended = False
 
             print("")
-            if recommended:
+            if recommended == True:
                 print("\u2713 RECOMMENDED")
-            elif valid:
-                print("\u2713 VALID, NOT RECOMMENDED")
-            else:
-                print("\u2717 INVALID, NOT RECOMMENDED") 
+            elif recommended == False:
+                print("\u2717 NOT RECOMMENDED") 
+            if valid == True:
+                print("\u2713 VALID")
+            elif valid == False:
+                print("\u2717 INVALID") 
+
             for reason in exobj.hasValidityReason:
                 print("\t \u2713 {}".format(reason))
             for reason in exobj.hasInvalidityReason:

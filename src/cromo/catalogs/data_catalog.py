@@ -4,9 +4,6 @@ from cromo.constants import DATA_CATALOG_URL
 
 # Get all datasets having the given variables that are relevant for the provided spatio-temporal information
 def getMatchingDatasets(variables, geojson, start_date, end_date):
-    print(geojson)
-    print(start_date)
-    print(end_date)
     data = {
         "standard_variable_names__in": variables,
         "spatial_coverage__intersects": geojson["geometry"],
