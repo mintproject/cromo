@@ -29,6 +29,27 @@ def getMeanWindSpeedFromGustsFile(inputs, geojson_file, start_date, end_date):
             'units': units}
     return res
 
+def getWindComplexityFromGustsFile(inputs, geojson_file, start_date, end_date):
+    input = inputs[0]
+    df = pd.read_csv(input,skiprows=8, header=None)
+    df_diff=df.iloc[:,2:].diff()
+    c1=(df_diff.iloc[:,0].abs()>2.5).any()
+    c2=(df_diff.iloc[:,1].abs()>45).any()
+    if c1 == True and c2 == True:
+        c=1
+    else:
+        c=0
+    val = {'wind_speed_change': float(c1), # convert from km/h to m/s, which is what we have in the model catalog
+            'wind_direction_change': float(c2),
+            'wind_complexity': float(c)}
+
+    des = {'wind_speed_change': 'If True, changes in wind speed greater than 2.5mps were observed',
+            'wind_direction_change': 'If True, changes in wind direction greater than 45deg were observed',
+            'wind_complexity':'If True, changes in wind speed greater than 2.5mps and wind direction greater than 45deg were observed'}
+
+    res = {'description':des,
+            'values': val}
+    return res
 
 def bbox(coord_list):
      box = []
@@ -53,6 +74,9 @@ def getMeanSlopeFromAPI(inputs, feature, start_date, end_date):
 SENSORS = {
     "mean_wind_10": {
         "GustsFile": getMeanWindSpeedFromGustsFile
+    },
+    "wind_complexity": {
+        "GustsFile": getWindComplexityFromGustsFile
     },
     "mean_slope": {
         "DEMFile": getMeanSlopeFromAPI
