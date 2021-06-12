@@ -2,13 +2,15 @@ from pathlib import Path
 
 from click.types import DateTime
 
+import geojson
 import re
 import cromo
 import semver
 import click
 from cromo import _utils
 from cromo._utils import get_cromo_logger
-from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurations, getModelRules
+from cromo.catalogs.model_catalog import checkConfigViability, getAllModelConfigurations, getModelRulesFromFile
+from cromo.constants import ONTOLOGY_DIR, RULES_DIR
 
 logging = get_cromo_logger()
 
@@ -42,7 +44,7 @@ You should consider upgrading via 'pip install --upgrade cromo' command.""",
     required=True
 )
 @click.argument(
-    "region_geojson",
+    "geojson_file",
     type=click.Path(exists=True, dir_okay=False, file_okay=True, resolve_path=True),
     default=Path('src/cromo/test/awash.geojson'),
     required=True
@@ -59,26 +61,27 @@ You should consider upgrading via 'pip install --upgrade cromo' command.""",
     default=DateTime(),
     required=True
 )
-def start(scenario, region_geojson, start_date, end_date):
+@click.option('--rulesdir', prompt='Rules Directory',
+              help='The directory that contains the model rules', required=True, default=RULES_DIR, show_default=True)
+@click.option('--ontdir', prompt='Ontology Directory',
+              help='The directory that contains the execution ontology', required=True, default=ONTOLOGY_DIR, show_default=True)
+
+def start(scenario, geojson_file, start_date, end_date, rulesdir, ontdir):
     print("SEARCH MODELS")
     print("- Scenario: {}".format(scenario))
-    print("- GeoJSON: {}".format(region_geojson))
+    print("- GeoJSON File: {}".format(geojson_file))
     print("- Start Date: {}, End Date: {}\n".format(start_date, end_date))
 
     print("Searching models...", end='\r')
     configs = find_models(scenario)
     print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-    # For each model, get input details
-    for config in configs:
-        if config.has_input is not None:
-            #print(config.id)
-            rules = getModelRules(config.id)
-            
-            # FIXME: For now only proceeding if there are rules for this model
-            if len(rules) > 0:
-                print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
-                checkConfigViability(config, region_geojson, start_date, end_date)
+    with open(geojson_file) as fd:
+        region_geojson = geojson.load(fd)
+        # For each model, get input details
+        for config in configs:
+            checkConfigViability(config.id, region_geojson, start_date, end_date, rulesdir=rulesdir, ontdir=ontdir)
+            #print(viability)
 
 
 def find_models(scenario):

@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import re
@@ -124,3 +125,6 @@ def parse(value):
         return int(value)
     except:
         return value
+
+def parse_datetime(str):
+    return datetime.datetime.strptime(str, "%Y-%m-%d")

@@ -1,0 +1,49 @@
+# Quic-Fire Rough Terrain, Low Wind
+# - Only runs where slope >= 20%, Wind < 1m/s
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_slope"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 20)
+-> 
+isRecommended(?ex, true),
+hasRecommendationReason(?ex, "Mean slope >= 20%")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "topo.dat"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_slope"),
+hasValue(?v, ?val),
+lessThan(?val, 20)
+-> 
+isRecommended(?ex, false),
+hasNonRecommendationReason(?ex, "Mean slope should be >= 20%")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "wind.csv"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_wind_10"),
+hasValue(?v, ?val),
+lessThan(?val, 1)
+-> 
+isRecommended(?ex, true),
+hasRecommendationReason(?ex, "Mean wind speed < 1 m/s")
+
+ModelExecution(?ex), 
+hasModelInput(?ex, ?i),
+hasLabel(?i, "wind.csv"),
+hasDataBinding(?i, ?ds),
+hasVariable(?ds, ?v),
+hasLabel(?v, "mean_wind_10"),
+hasValue(?v, ?val),
+greaterThanOrEqual(?val, 1)
+-> 
+isRecommended(?ex, false),
+hasNonRecommendationReason(?ex, "Mean wind speed should be < 1 m/s")

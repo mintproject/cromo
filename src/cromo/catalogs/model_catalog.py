@@ -1,19 +1,16 @@
-
 import re
+import json
 import copy
 import itertools
-from time import sleep
-from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog import api_client, configuration
 from modelcatalog.api.model_configuration_api import ModelConfigurationApi
 from modelcatalog.api.model_configuration_setup_api import ModelConfigurationSetupApi
-from modelcatalog.api.variable_presentation_api import VariablePresentationApi
-from modelcatalog.api.dataset_specification_api import DatasetSpecificationApi
 from modelcatalog.exceptions import ApiException
-from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
+from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets 
 from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_USERNAME, ONTOLOGY_DIR, RULES_DIR, getLocalName
+from owlready2 import onto_path, get_ontology, Imp, sync_reasoner_pellet
 
-from owlready2 import *
+from cromo.metadata.sensors import SENSORS
 
 MC_API_CLIENT=api_client.ApiClient(configuration.Configuration(host=MODEL_CATALOG_URL))
 
@@ -43,49 +40,53 @@ def getAllModelConfigurationSetups():
 
 
 # Get Input details of a model configuration (or a setup)
-def getModelConfigurationDetails(config):
+def getModelConfigurationDetails(config_id):
     try:
-        spec_api = DatasetSpecificationApi(api_client=MC_API_CLIENT)
-        pres_api = VariablePresentationApi(api_client=MC_API_CLIENT)
-        if config.has_input is not None:
-            new_inputs = []
-            for input in config.has_input:
-                new_input = spec_api.datasetspecifications_id_get(getLocalName(input.id), username=DEFAULT_USERNAME)
-                if new_input.has_presentation is not None:
-                    new_presentations = []
-                    for pres in new_input.has_presentation:
-                        if pres.id is not None:
-                            new_presentation = pres_api.variablepresentations_id_get(getLocalName(pres.id), username=DEFAULT_USERNAME)
-                            new_presentations.append(new_presentation)
-                    new_input.has_presentation = new_presentations
-                new_inputs.append(new_input)
-            config.has_input = new_inputs
+        api_instance = ModelConfigurationSetupApi(api_client=MC_API_CLIENT)
+        config = api_instance.custom_modelconfigurationsetups_id_get(getLocalName(config_id), username=DEFAULT_USERNAME)
         return config
     except ApiException as e:
-        print("Exception when getting model configuration details({}): {}\n".format(config.id, e))
+        print("Exception when getting model configuration details({}): {}\n".format(config_id, e))
     return None
 
 # Fetch rules. TODO: Fetch this from the model catalog
-def getModelRules(configid):
+def getModelRulesFromFile(configid, rulesdir=RULES_DIR):
     rules = []
     try:
-        currule = ""        
-        with open("{}/{}.rules".format(RULES_DIR, getLocalName(configid))) as fd:
-            for rule in fd.readlines():
-                srule = rule.strip()
-                if srule == "":
-                    rules.append(currule)
-                    currule = ""
-                else:
-                    currule += srule
-        if currule.strip() != "":
-            rules.append(currule)
-
+        with open("{}/{}.rules".format(rulesdir, getLocalName(configid))) as fd:
+            rulestring = fd.read()
+            rules = splitModelRulesString(rulestring)
     except FileNotFoundError as e:
         pass
         #print("Rules file not found for {}: {}".format(configid, e))
     return rules
 
+def getModelRulesFromConfig(config):
+    rules = []
+    if config.has_constraint is not None:
+        for cons in config.has_constraint:
+            # TODO: Hack until model catalog api is updaed
+            cons = cons.replace('\"', '\\"').replace("'", '"')
+            consobj = json.loads(cons)
+            for rule in consobj["hasRule"]:
+                rules.extend(splitModelRulesString(rule))
+    return rules
+
+def splitModelRulesString(rules_string):
+    rules = []
+    currule = ""
+    for rule in rules_string.splitlines():
+        srule = rule.strip()
+        if re.match("^#", srule):
+            continue
+        if srule == "":
+            rules.append(currule)
+            currule = ""
+        else:
+            currule += srule
+    if currule.strip() != "":
+        rules.append(currule)
+    return rules
 
 class ModelRuleInput:
     def __init__(self, input, variable):
@@ -132,16 +133,22 @@ def parseModelRule(rule):
     return ruleinputs
 
 
-def getDerivedVariableValues(config, input_urls, derived_variable, region_geojson, start_date, end_date):
+CACHED_DERIVED_VARIABLES = {}
+def getDerivedVariableValues(config, input_type, input_urls, derived_variable, region_geojson, start_date, end_date):
+    key = "{}-{}-{}-{}-{}".format(input_urls, derived_variable, region_geojson, start_date, end_date)
+    if key in CACHED_DERIVED_VARIABLES:
+        return CACHED_DERIVED_VARIABLES[key]
+
     # TODO: Run code here to generate the derived_variable
     # - Have a mapping for datatype:variable to code
     # - Run the code and return all relevant derived variables
-    sleep(2)
-    if re.match(".*wind_speed", derived_variable) is not None:
-        return {
-            "min_wind_speed": 10,
-            "average_wind_speed": 24
-        }
+    if derived_variable in SENSORS:
+        typefns = SENSORS[derived_variable]
+        if input_type in typefns:
+            fn = typefns[input_type]
+            res = fn(input_urls, region_geojson, start_date, end_date)
+            CACHED_DERIVED_VARIABLES[key] = res["values"]
+            return res["values"]
     return {}
 
 
@@ -150,7 +157,7 @@ def runExecutionRules(onto, rules):
         for r in rules:
             rule = Imp()
             rule.set_as_rule(r)
-    
+
 
 # Check which inputs do we have to process: { i, m } (input and metadata from that input)
 # - Get datasets for these inputs : { dj }
@@ -162,11 +169,28 @@ def runExecutionRules(onto, rules):
 #   - Create a ModelExecution in owlready2 with appropriate values of i, m, mv
 #   - Run all model rules ( one by one ?)
 #   - Check if the model is valid
+def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdir=RULES_DIR, ontdir=ONTOLOGY_DIR):
+    print("Get model IO details...", end='\r')
+    config = getModelConfigurationDetails(configId)
 
-def checkConfigViability(config, region_geojson, start_date, end_date):
+    # FIXME: Could also return configs without inputs ?
+    if config.has_input is None:
+        return None
 
-    rules = getModelRules(config.id)
-    relevant_input_variables = {}    
+    # FIXME: Change to getModelRules from model catalaog (or config should already have it)
+    # rules = getModelRulesFromFile(configId, rulesdir=rulesdir)
+    rules = getModelRulesFromConfig(config)
+
+    # FIXME: For now only proceeding if there are rules for this model
+    if len(rules) == 0:
+        return None
+
+    print("\n{}\n{}".format(config.label[0], "="*len(config.label[0])))
+
+    if ontdir not in onto_path:
+        onto_path.append(ontdir)
+
+    relevant_input_variables = {}
     onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
     with onto:
         for r in rules:
@@ -177,11 +201,9 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                 ivar = rinput["input"]
                 if ivar not in relevant_input_variables:
                     relevant_input_variables[ivar] = []
-                relevant_input_variables[ivar].append(rinput["variable"])
+                if rinput["variable"] not in relevant_input_variables[ivar]:
+                    relevant_input_variables[ivar].append(rinput["variable"])
 
-
-    print("Get model IO details...", end='\r')
-    config = getModelConfigurationDetails(config)
     print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
     input_djmvs = {}
@@ -196,7 +218,7 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
 
             # Fetch dataset information for this input from the data catalog
             if input.has_presentation is not None:
-                print("\tInput: {}".format(input_label))
+                print("\nInput: {}".format(input_label))
                 # Get Variables for this input
                 variables = []
                 for pres in input.has_presentation:
@@ -204,46 +226,46 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                         variables.append(pres.has_standard_variable[0].label[0])
                 #print("\tVariables: {}".format(str(variables)))
 
-                print("\t\tSearching datasets...", end='\r')
+                print(f"- Searching datasets containing variables '{variables}' for this region and time period...", end='\r')
                 datasets = getMatchingDatasets(variables, region_geojson, start_date, end_date)
                 print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
                 djmvs = []
                 if len(datasets) == 0:
-                    print("\r\t\tNo datasets found in data catalog matching input variables")
+                    print("\r- No datasets found in data catalog matching input variables {} for this region and time period.".format(variables))
                 else:
                     # Get datasets that match the input type as well
-                    matches = matchTypedDatasets(datasets, input.type)
+                    matches = datasets #matchTypedDatasets(datasets, input.type)
                     if len(matches) == 0:
-                        print("\r\t\tNo datasets found in data catalog for matching type")
+                        print("\r- No datasets found in data catalog for matching type")
 
                     for ds in matches:
                         meta = ds["dataset_metadata"]
-                        print("\r\t\t* {}".format(ds["dataset_name"]))
-                        if "source" in meta:
-                            print("\t\t\t- Source: {}".format(meta["source"]))
-                        if "version" in meta:
-                            print("\t\t\t- Version: {}".format(meta["version"]))
-
-                        print("\t\t\t- Fetching resources...", end='\r')
+                        print("\r- Dataset: {} ( Fetching files... )".format(ds["dataset_name"]), end='\r')
+                        
                         resources = getMatchingDatasetResources(ds["dataset_id"], region_geojson, start_date, end_date)
-                        print("{}".format(''.join([' ']*100)), end='\r') # Clear line
 
-                        print("\r\t\t\t- {} resources".format(len(resources)))
+                        print("\r- Dataset: {} ( {} files... )       ".format(ds["dataset_name"], len(resources)))
+
                         resource_urls = list(map(lambda res: res["resource_data_url"], resources))
 
-                        print("\t\t\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
+                        if len(resources) == 0:
+                            print("- No files found")
+                            continue
+
+                        print("\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
                         derived_variable_values = {}
                         for derived_variable in derived_variables:
                             if derived_variable not in derived_variable_values:
-                                values = getDerivedVariableValues(config, resource_urls, derived_variable, region_geojson, start_date, end_date)
+                                values = getDerivedVariableValues(config, meta["datatype"], resource_urls, derived_variable, region_geojson, start_date, end_date)
                                 derived_variable_values.update(values)
-                        
-                        print("{}".format(''.join([' ']*200)), end='\r') # Clear line
+
+                        for dv,dvv in derived_variable_values.items():
+                            print("\t- {} = {}{}".format(dv, dvv, ''.join([' ']*50)))
 
                         djmvs.append({
-                            "dj": ds["dataset_id"],
-                            "mv": derived_variable_values
+                            "dataset": ds,
+                            "derived_variables": derived_variable_values
                         })
 
                 input_djmvs[input_label] = djmvs
@@ -259,10 +281,21 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
             combo[keys[i]] = prod[i]
         input_djmv_combos.append(combo)
 
+    if len(input_djmv_combos) > 0:
+        print("\nConstraint Reasoning Over MOdel:")
+
+    return_values = []
+
     # For each combination, create an onto, and run the rules
     # Check if the combination is valid
+    count = 1
     for input_djmv_combo in input_djmv_combos:
-        print("\tTrying input combo: {}".format(input_djmv_combo))
+        print("\n------ Data combination {} -------".format(count))
+        count += 1
+        for input_label, djmv in input_djmv_combo.items():
+            print("- {} : {}".format(input_label, djmv["dataset"]["dataset_name"]))
+
+        return_djmv_combo = []
         onto = get_ontology(EXECUTION_ONTOLOGY_URL).load()
         with onto:
             exobj = onto.ModelExecution()
@@ -271,6 +304,8 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                 rule = Imp()
                 rule.set_as_rule(r)
             for input_label, djmv in input_djmv_combo.items():
+                return_djmv = copy.deepcopy(djmv)
+
                 inobj = onto.ModelInput()
                 inobj.hasLabel = input_label
                 inobj.hasDataBinding = []
@@ -280,13 +315,67 @@ def checkConfigViability(config, region_geojson, start_date, end_date):
                 inobj.hasDataBinding.append(dsobj)
                 dsobj.hasVariable = []
 
-                for dv,dvv in djmv["mv"].items():
+                return_derived_variables = []
+                for dv,dvv in djmv["derived_variables"].items():
                     dvarobj = onto.Variable()
                     dvarobj.hasLabel = dv
                     dvarobj.hasValue = dvv
                     dsobj.hasVariable.append(dvarobj)
+                    return_derived_variables.append({
+                        "variable_id": dv,
+                        "value": dvv
+                    })
+                return_djmv["dataset"]["derived_variables"] = return_derived_variables
+                return_djmv_combo.append({
+                    "input_id": input_label,
+                    "dataset": return_djmv["dataset"]
+                })
                         
             sync_reasoner_pellet(infer_property_values = True, infer_data_property_values = True, debug=0)
-            print("\t- Valid ? : {}".format(exobj.isValid))
-            print("\t- Why Valid ? : {}".format(exobj.hasValidityReason))
-            print("\t- Why Not Valid ? : {}".format(exobj.hasInvalidityReason))
+
+            valid = None
+            recommended = None            
+            for exv in exobj.isValid:
+                if exv and valid is None:
+                    valid = True
+                if not(exv):
+                    valid = False
+            for exr in exobj.isRecommended:
+                if exr and recommended is None:
+                    recommended = True
+                if not(exr):
+                    recommended = False
+
+            print("")
+            if recommended == True:
+                print("\u2713 RECOMMENDED")
+            elif recommended == False:
+                print("\u2717 NOT RECOMMENDED") 
+            if valid == True:
+                print("\u2713 VALID")
+            elif valid == False:
+                print("\u2717 INVALID") 
+
+            for reason in exobj.hasValidityReason:
+                print("\t \u2713 {}".format(reason))
+            for reason in exobj.hasInvalidityReason:
+                print("\t \u2717 {}".format(reason))
+            for reason in exobj.hasRecommendationReason:
+                print("\t \u2713 {}".format(reason))
+            for reason in exobj.hasNonRecommendationReason:
+                print("\t \u2717 {}".format(reason))
+
+            return_values.append({
+                "inputs": return_djmv_combo,
+                "validity": {
+                    "valid": valid,
+                    "validity_reasons": exobj.hasValidityReason,
+                    "invalidity_reasons": exobj.hasInvalidityReason,
+                    "recommended": recommended,
+                    "recommendation_reasons": exobj.hasRecommendationReason,
+                    "non_recommendation_reasons": exobj.hasNonRecommendationReason                    
+                }
+            })
+            onto.destroy()
+
+    return return_values
