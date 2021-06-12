@@ -1,0 +1,7 @@
+version: '3'
+services:
+  cromo:
+    image: "mintproject/cromo"
+    build:
+      context: .
+      dockerfile: Dockerfile

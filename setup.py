@@ -5,7 +5,7 @@ install_requires = [
 "connexion",
 "Flask-Cors",
 "geojson",
-"modelcatalog-api",
+"modelcatalog-api==8.0.0",
 "openapi-schema-validator",
 "openapi-spec-validator",
 "Owlready2",
