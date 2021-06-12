@@ -10,7 +10,7 @@ from cromo import _utils
 from cromo.click_encapsulate.commands import start
 from modelcatalog import Configuration
 
-from cromo.constants import ONTOLOGY_DIR, RULES_DI
+from cromo.constants import ONTOLOGY_DIR, RULES_DIR
 
 
 @click.group()
