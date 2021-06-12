@@ -1,16 +1,14 @@
 import re
 import json
 import copy
-import requests
 import itertools
 from modelcatalog import api_client, configuration
 from modelcatalog.api.model_configuration_api import ModelConfigurationApi
 from modelcatalog.api.model_configuration_setup_api import ModelConfigurationSetupApi
 from modelcatalog.exceptions import ApiException
-from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets, matchTypedDatasets
+from cromo.catalogs.data_catalog import getMatchingDatasetResources, getMatchingDatasets 
 from cromo.constants import EXECUTION_ONTOLOGY_URL, MODEL_CATALOG_URL, DEFAULT_USERNAME, ONTOLOGY_DIR, RULES_DIR, getLocalName
-
-from owlready2 import *
+from owlready2 import onto_path, get_ontology, Imp, sync_reasoner_pellet
 
 from cromo.metadata.sensors import SENSORS
 
