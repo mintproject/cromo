@@ -10,8 +10,7 @@ on:
   pull_request:
 
 env:
-  IMAGE_NAME: model_catalog_api
-  SWAGGER_IMAGE_NAME: mintproject/swagger-ui 
+  IMAGE_NAME: cromo 
 jobs:
   push:
     runs-on: ubuntu-latest
@@ -22,15 +21,7 @@ jobs:
 
       - name: Build image
         run: |
-          pushd server
           docker build . --tag $IMAGE_NAME
-          popd
-
-      - name: Build image
-        run: |
-          pushd server
-          docker build . --file Dockerfile_swagger_ui --tag $SWAGGER_IMAGE_NAME
-          popd
 
 
       - name: Login to DockerHub
@@ -50,6 +41,4 @@ jobs:
           echo VERSION=$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
-          docker tag $SWAGGER_IMAGE_NAME $SWAGGER_IMAGE_NAME:$VERSION
-          docker push $SWAGGER_IMAGE_NAME:$VERSION
 
