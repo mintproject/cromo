@@ -28,4 +28,5 @@ semver==3.0.0.dev2
 six==1.16.0
 urllib3==1.26.5
 pandas
+validators
 Werkzeug==2.0.1
