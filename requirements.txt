@@ -30,3 +30,4 @@ urllib3==1.26.5
 pandas
 validators
 Werkzeug==2.0.1
+connexion[swagger-ui]

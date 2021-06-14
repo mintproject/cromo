@@ -15,7 +15,8 @@ install_requires = [
 "numpy",
 "Cython",
 "Flask==2.0.1",
-"validators"
+"validators",
+"connexion[swagger-ui]"
 ]
 
 setup(name='cromo',
