@@ -64,6 +64,12 @@ def getMeanSlopeFromAPI(inputs, feature, start_date, end_date):
     url = f"https://sdge.sdsc.edu/pylaski/app/fastfuels/elevation?bbox={boundingBox}"
     val = requests.get(url).json()
     #val = {"mean_elevation": 787.8670450428692, "mean_slope": 20.09848326408428, "units": {"mean_elevation": "m", "mean_slope": "%"}}
+    if "units" not in val:
+        return {
+            "values": [],
+            "units": []
+        }
+
     units = val["units"]
     del val["units"]
     return {

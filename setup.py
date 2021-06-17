@@ -3,7 +3,9 @@ from setuptools import setup, find_packages
 install_requires = [
 "click",
 "connexion",
+"swagger-ui-bundle",
 "Flask-Cors",
+"pandas",
 "geojson",
 "modelcatalog-api==8.0.0",
 "openapi-schema-validator",
@@ -14,6 +16,7 @@ install_requires = [
 "semver",
 "numpy",
 "Cython",
+"validators",
 "Flask==2.0.1",
 ]
 

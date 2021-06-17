@@ -29,3 +29,5 @@ six==1.16.0
 urllib3==1.26.5
 pandas
 Werkzeug==2.0.1
+validators
+swagger-ui-bundle

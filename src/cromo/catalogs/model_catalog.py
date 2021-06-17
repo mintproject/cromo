@@ -65,10 +65,7 @@ def getModelRulesFromConfig(config):
     rules = []
     if config.has_constraint is not None:
         for cons in config.has_constraint:
-            # TODO: Hack until model catalog api is updaed
-            cons = cons.replace('\"', '\\"').replace("'", '"')
-            consobj = json.loads(cons)
-            for rule in consobj["hasRule"]:
+            for rule in cons.has_rule:
                 rules.extend(splitModelRulesString(rule))
     return rules
 
