@@ -144,8 +144,8 @@ def getDerivedVariableValues(config, input_type, input_urls, derived_variable, r
         if input_type in typefns:
             fn = typefns[input_type]
             res = fn(input_urls, region_geojson, start_date, end_date)
-            CACHED_DERIVED_VARIABLES[key] = res["values"]
-            return res["values"]
+            CACHED_DERIVED_VARIABLES[key] = res
+            return res
     return {}
 
 
@@ -251,13 +251,21 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
                             continue
 
                         print("\t- Deriving {} values for dataset...".format(str(derived_variables)), end='\r')
-                        derived_variable_values = {}
+                        derived_variable_values = {
+                            "description": {},
+                            "values": {},
+                            "units": {},
+                            "labels": {}
+                        }
                         for derived_variable in derived_variables:
                             if derived_variable not in derived_variable_values:
-                                values = getDerivedVariableValues(config, meta["datatype"], resource_urls, derived_variable, region_geojson, start_date, end_date)
-                                derived_variable_values.update(values)
+                                variables = getDerivedVariableValues(config, meta["datatype"], resource_urls, derived_variable, region_geojson, start_date, end_date)
+                                derived_variable_values['description'].update(variables['description'])
+                                derived_variable_values['values'].update(variables['values'])
+                                derived_variable_values['units'].update(variables['units'])
+                                derived_variable_values['labels'].update(variables['labels'])
 
-                        for dv,dvv in derived_variable_values.items():
+                        for dv,dvv in derived_variable_values["values"].items():
                             print("\t- {} = {}{}".format(dv, dvv, ''.join([' ']*50)))
 
                         djmvs.append({
@@ -313,14 +321,21 @@ def checkConfigViability(configId, region_geojson, start_date, end_date, rulesdi
                 dsobj.hasVariable = []
 
                 return_derived_variables = []
-                for dv,dvv in djmv["derived_variables"].items():
+                dvobjs = djmv["derived_variables"]
+                for dv,dvv in dvobjs["values"].items():
                     dvarobj = onto.Variable()
                     dvarobj.hasLabel = dv
                     dvarobj.hasValue = dvv
                     dsobj.hasVariable.append(dvarobj)
+
                     return_derived_variables.append({
                         "variable_id": dv,
-                        "value": dvv
+                        "variable": {
+                            "value": dvv,
+                            "label": dvobjs["labels"][dv],
+                            "units": dvobjs["units"][dv],
+                            "description": dvobjs["description"][dv]
+                        }
                     })
                 return_djmv["dataset"]["derived_variables"] = return_derived_variables
                 return_djmv_combo.append({
