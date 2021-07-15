@@ -6,8 +6,15 @@ import requests
 from requests.api import request
 
 def getMeanWindSpeedFromGustsFile(inputs, geojson_file, start_date, end_date):
-    input = inputs[0]
-    df = pd.read_csv(input,skiprows=8, header=None)
+    df = None
+    for input in inputs:
+        print(input)
+        idf = pd.read_csv(input,skiprows=8, header=None)
+        if df is None:
+            df = idf
+        else:
+            df = pd.concat(df, idf)
+
     min_df = df.min()
     mean_df = df.mean()
     max_df = df.max()
