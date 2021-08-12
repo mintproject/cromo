@@ -1,5 +1,7 @@
-# cromo
-Contraint Reasoning Over MOdels
+# CROMO
+Contraint Reasoning Over MOdels. Cromo is built over the MINT platform, and it Recommends Models for a given combination of a Scenario, Time Period and a reagion. The Scenario provides a text keyword search to narrow down the list of matching models, and the Time Period & Region are used to match available input datasets for each of the models.
+
+The Model Constraints themselves are written in SWRL (swirl), which stands for Semantic Web Rule Language.
 
 Installation
 ------------
