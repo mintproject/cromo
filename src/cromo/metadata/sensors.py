@@ -12,7 +12,7 @@ def getMeanWindSpeedFromGustsFile(inputs, geojson_file, start_date, end_date):
         if df is None:
             df = idf
         else:
-            df = pd.concat(df, idf)
+            df = pd.concat([df, idf])
     min_df = df.min()
     mean_df = df.mean()
     max_df = df.max()
