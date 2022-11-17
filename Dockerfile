@@ -1,4 +1,4 @@
-FROM python:3.9-buster
+FROM python:3.9.15-buster
 RUN  echo "deb https://deb.debian.org/debian/  bullseye main" >> /etc/apt/sources.list \
 	&& apt-get update \
 	&& apt-get install -y \
