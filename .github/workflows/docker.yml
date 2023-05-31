@@ -9,8 +9,13 @@ on:
   pull_request:
 
 env:
-  DOCKER_IMAGE_NAME: cromo
+  IMAGE_NAME: cromo
+  #variables related with the repository
+  REPOSITORY_MAIN_BRANCH: "master"
+  #variables related with the docker imager registry
   DOCKER_IMAGE_REPOSITORY: mintproject
+  DOCKER_IMAGE_NAME: cromo
+  DOCKER_FILE: "Dockerfile"
 
 jobs:
   build:
